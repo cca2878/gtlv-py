@@ -67,9 +67,12 @@ pub struct Detector {
 impl Detector {
     /// 加载内置模型并构造推理器。
     #[new]
-    fn new() -> PyResult<Self> {
-        let engine =
-            Engine::new().map_err(|e| PyRuntimeError::new_err(format!("load models: {e}")))?;
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        // 加载与图优化耗时数百毫秒且不碰 Python 对象；释放 GIL，避免构造推理器
+        // 的这段时间卡住调用方的事件循环。
+        let engine = py
+            .allow_threads(Engine::new)
+            .map_err(|e| PyRuntimeError::new_err(format!("load models: {e}")))?;
         Ok(Self {
             engine: Mutex::new(engine),
         })

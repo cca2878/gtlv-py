@@ -1,4 +1,4 @@
-"""Click solving: inference plus assignment."""
+"""点选求解：推理与指派。"""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from .exceptions import UnsolvableImageError
 
 __all__ = ["ClickResult", "Solver"]
 
-# 提示词字数的合法范围。超出该范围表明提示框异常，或提示词特征提取未完成。
+# 提示词字数的合法范围。
 MIN_PROMPT_CHARS = 2
 MAX_PROMPT_CHARS = 4
 
 
 @dataclass(frozen=True)
 class ClickResult:
-    """Coordinates to click, in submission order."""
+    """按提交顺序排列的点击坐标。"""
 
     coords: List[Tuple[float, float]]
     confidences: List[float]
@@ -31,8 +31,7 @@ class ClickResult:
 class Solver:
     """点选求解器：进程内构造一次、反复调用 :meth:`solve`。
 
-    模型加载与图优化需数百毫秒，因此实例应复用，不应每次求解都新建。
-    :meth:`solve` 可从多个线程调用，底层推理以互斥串行化。
+    构造需加载模型，耗时数百毫秒。:meth:`solve` 可从多个线程调用，底层推理以互斥串行化。
     """
 
     def __init__(self) -> None:

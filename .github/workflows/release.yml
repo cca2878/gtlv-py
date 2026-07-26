@@ -1,19 +1,11 @@
 name: Release
 
-# Build wheels and an sdist, then publish them to PyPI on a version tag.
-# Publishing uses PyPI Trusted Publishing: GitHub mints a short-lived OIDC token
-# that PyPI exchanges for upload credentials, so no API token is stored here.
-#
-# One-time setup on PyPI (Your projects -> Publishing, or a pending publisher for
-# the first release) must match this workflow exactly:
-#   Owner            cca2878
-#   Repository       gtlv-py
-#   Workflow         release.yml
-#   Environment      pypi
+# 打版本 tag 时构建 wheel 与 sdist 并发布到 PyPI。
+# 发布走 PyPI 可信发布（OIDC），仓库内不保存 API token。
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: # builds and verifies the matrix without publishing
+  workflow_dispatch: # 构建并验证整个矩阵，但不发布
 
 permissions:
   contents: read
@@ -21,11 +13,11 @@ permissions:
 jobs:
   guard:
     name: Tag matches Cargo.toml
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v7
-      # PyPI versions are immutable, so catch a mismatch before anything uploads.
+      # PyPI 的版本号不可覆盖，故在任何上传之前先拦下不一致。
       - run: |
           tag="${GITHUB_REF_NAME#v}"
           crate="$(sed -n '0,/^version = /s/^version = "\(.*\)"/\1/p' Cargo.toml)"
@@ -38,26 +30,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # runner 版本钉死以保证发布可复现，镜像被标记弃用时再更新。每个目标都在与其
+        # 架构相同的 runner 上构建，故每个 job 都能验证自己刚产出的 wheel；交叉编译会
+        # 使该 wheel 未经任何导入即发布。
         platform:
-          - { os: linux, runner: ubuntu-latest, target: x86_64 }
-          - { os: linux, runner: ubuntu-latest, target: aarch64 }
-          - { os: macos, runner: macos-latest, target: aarch64 }
-          - { os: macos, runner: macos-15-intel, target: x86_64 }
-          - { os: windows, runner: windows-latest, target: x64 }
+          - { os: linux, runner: ubuntu-24.04, target: x86_64 }
+          - { os: linux, runner: ubuntu-24.04-arm, target: aarch64 }
+          - { os: macos, runner: macos-26, target: aarch64 }
+          - { os: macos, runner: macos-26-intel, target: x86_64 }
+          - { os: windows, runner: windows-2025, target: x64 }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          # Pinned rather than "3.x": abi3 fixes the output ABI at py310 no matter
-          # which interpreter builds it, so a floating latest only adds the risk of
-          # outrunning what this PyO3 release knows about.
+          # abi3 使输出 ABI 固定为 py310，与构建所用解释器无关；钉死版本可避免
+          # 超出当前 PyO3 支持的范围。
           python-version: "3.13"
 
-      # abi3-py310 yields a single wheel per platform, so no interpreter sweep.
+      # abi3-py310 每个平台只产出一个 wheel，无需遍历解释器版本。
       - uses: PyO3/maturin-action@v1
         env:
-          # The manylinux containers pick their own interpreter, which may be newer
-          # than the above; the stable ABI holds either way.
+          # manylinux 容器自行选择解释器，可能比上面钉的更新。
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.platform.target }}
@@ -65,10 +58,9 @@ jobs:
           manylinux: auto
           sccache: "true"
 
-      # Smoke-test the actual artifact on the one runner that can load it.
-      # A wheel that fails to import must never reach PyPI.
+      # 导入失败的 wheel 绝不能进入 PyPI。
       - name: Install and test the built wheel
-        if: matrix.platform.os == 'linux' && matrix.platform.target == 'x86_64'
+        shell: bash # Windows 默认 PowerShell，不展开通配符
         run: |
           python -m pip install dist/*.whl
           python -m unittest discover -s tests -v
@@ -80,7 +72,7 @@ jobs:
 
   sdist:
     name: sdist
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: PyO3/maturin-action@v1
@@ -96,19 +88,18 @@ jobs:
     name: publish -> PyPI
     needs: [guard, wheels, sdist]
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/p/gtlv
     permissions:
-      id-token: write # required for Trusted Publishing; no token secret is used
+      id-token: write # 可信发布所需；不使用任何 token secret
     steps:
       - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           path: dist
           merge-multiple: true
-      # A rejected upload still burns the version number, so validate metadata
-      # and README rendering first.
+      # 被拒的上传同样占用版本号，故先行校验。
       - run: pipx run twine check dist/*
       - uses: pypa/gh-action-pypi-publish@release/v1

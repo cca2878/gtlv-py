@@ -1,8 +1,7 @@
-"""Async HTTP GET over the standard library, so the wheel needs no dependencies.
+"""基于 ``urllib`` 的异步 HTTP GET，阻塞调用在工作线程中执行。
 
-A solve is a handful of plain GETs, which ``urllib`` already does; the blocking
-calls run in a worker thread. :class:`gtlv.Client` accepts any object exposing
-``async get(url, params=...)``, so httpx or aiohttp can replace this.
+:class:`gtlv.Client` 接受任何提供 ``async get(url, params=...)`` 的对象，
+故本客户端可由 httpx 或 aiohttp 替换。
 """
 
 from __future__ import annotations
@@ -14,8 +13,8 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, Mapping, Optional
 
-# Bilibili's captcha registration endpoint answers 412 to unknown clients, and
-# urllib's default "Python-urllib/3.x" is one of them. Present as a browser.
+# B 站的验证码登记接口对未知客户端返回 412，urllib 默认的 "Python-urllib/3.x" 即在其列，
+# 故以浏览器标识发起请求。
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -23,7 +22,7 @@ DEFAULT_USER_AGENT = (
 
 
 class Response:
-    """The subset of the httpx response surface that :class:`gtlv.Client` uses."""
+    """:class:`gtlv.Client` 所用的响应接口子集，与 httpx 的形状一致。"""
 
     def __init__(self, status_code: int, content: bytes, url: str) -> None:
         self.status_code = status_code
@@ -45,7 +44,7 @@ class Response:
 
 
 class HttpClient:
-    """Default async GET client backed by ``urllib``."""
+    """基于 ``urllib`` 的默认异步 GET 客户端。"""
 
     def __init__(
         self,
@@ -72,8 +71,8 @@ class HttpClient:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 return Response(response.status, response.read(), url)
         except urllib.error.HTTPError as error:
-            # Surface the status instead of raising, so raise_for_status decides.
+            # 交出状态码而不直接抛出，由 raise_for_status 决定。
             return Response(error.code, error.read(), url)
 
     async def aclose(self) -> None:
-        """No pooled state to release; present for interface parity."""
+        """无连接池状态需释放；此处仅为保持接口一致。"""

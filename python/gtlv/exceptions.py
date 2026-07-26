@@ -1,12 +1,12 @@
-"""Typed errors raised by the async GeeTest V3 client."""
+"""异步极验 V3 客户端抛出的类型化异常。"""
 
 
 class GtlvError(Exception):
-    """Base class for gtlv client errors."""
+    """gtlv 客户端异常的基类。"""
 
 
 class ProtocolError(GtlvError):
-    """The remote endpoint returned malformed or incomplete protocol data."""
+    """远端返回的协议数据格式错误或字段缺失。"""
 
 
 class UnsolvableImageError(GtlvError):
@@ -14,7 +14,7 @@ class UnsolvableImageError(GtlvError):
 
 
 class VerificationError(GtlvError):
-    """GeeTest rejected a submitted answer; replacing the image may succeed."""
+    """极验拒绝了提交的答案；更换图像后重试可能成功。"""
 
     def __init__(self, result: str = "", message: str = "") -> None:
         self.result = result
@@ -29,7 +29,7 @@ class VerificationError(GtlvError):
 
 
 class UnsupportedCaptchaTypeError(GtlvError):
-    """GeeTest selected a captcha type other than click or slide."""
+    """极验下发了点选与滑动之外的验证码类型。"""
 
     def __init__(self, captcha_type: str) -> None:
         self.captcha_type = captcha_type
@@ -39,4 +39,4 @@ class UnsupportedCaptchaTypeError(GtlvError):
 
 
 class SolverRequiredError(GtlvError):
-    """A click captcha was selected but the client has no click solver."""
+    """下发了点选验证码，但客户端未配置点选求解器。"""

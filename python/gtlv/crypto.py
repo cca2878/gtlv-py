@@ -1,7 +1,7 @@
-"""GeeTest V3 ``w`` parameter generation.
+"""极验 V3 ``w`` 参数的生成。
 
-``w`` is an AES-CBC encrypted JSON payload concatenated with the RSA-encrypted
-AES key, the ciphertext carried in GeeTest's own Base64 variant.
+``w`` 由两段拼成：AES-CBC 加密的 JSON 载荷，以及 RSA 加密的 AES 密钥；
+密文以极验自定义的 Base64 变体承载。
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ _RSA_MODULUS = int(
 )
 _RSA_EXPONENT = 0x10001
 
-# GeeTest's Base64 alphabet, with '.' as padding.
+# 极验的 Base64 字母表，以 '.' 作填充。
 _BASE64_ALPHABET = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()"
 # 每个掩码恰有 6 个置位，从 24 位输入中挑出一个输出字符的位。
 _MASKS = (7274496, 9483264, 19220, 235)
@@ -168,7 +168,7 @@ def _obfuscate_track(track: str, c: bytes, s: str) -> str:
     if len(c) < 5 or not s or not track:
         return track
 
-    # 插入偏移量按【原始】长度取模，可能落在多字节字符中间，故在字节缓冲上操作。
+    # 插入偏移量按原始长度取模，可能落在多字节字符中间，故在字节缓冲上操作。
     original_length = len(track.encode())
     out = bytearray(track.encode())
     for index in range(0, len(s) - 1, 2):

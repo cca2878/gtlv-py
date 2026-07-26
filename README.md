@@ -173,9 +173,7 @@ async with Client(max_attempts=3) as client:
 gt, challenge = await client.fetch_challenge(register_url)
 ```
 
-旧名称 `V3Client`、`register()` 和 `get_validate()` 仍保留用于兼容。新代码应优先使用
-`Client`、`fetch_challenge()` 和 `solve()`；`get_validate()` 只返回裸 `validate` 字符串，会丢失
-滑动流程最终使用的新 challenge。
+注意滑动流程会换用新的 challenge，所以要用 `Validation.challenge` 而不是传入的那个提交业务侧。
 
 ## Client 配置
 
@@ -231,6 +229,19 @@ GtlvError
 需要 CPython 3.9+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
 会自动选择该工具链。
 
+推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，目前以 **path 依赖**
+`../gtlv-core` 引入，因此本仓必须与 `gtlv-core` **同级检出**才能构建：
+
+```
+some-dir/
+├── gtlv-core/
+└── gtlv-py/
+```
+
+> **发布前须改成 git rev 依赖。** path 依赖打不进 sdist，单独 `git clone` 本仓也无法构建。
+> 待 `gtlv-core` 发布后把 `Cargo.toml` 改为 `gtlv-core = { git = "...", rev = "..." }`
+> 即可解除该约束（CI 里同级检出 core 的那一步也可随之删除）。
+
 ```bash
 python -m pip install 'maturin>=1,<2' 'mypy>=1.19'
 
@@ -250,8 +261,8 @@ make PYTHON=python3.12 CARGO=cargo test
 ```
 
 Python 客户端测试使用注入的假 HTTP 客户端，不访问真实网络，覆盖点选/滑动分派、懒加载、换图重试、
-challenge 更新、兼容 API 和协议错误。Rust 测试覆盖矩形指派、滑动背景与轨迹、极验自定义 Base64，
-以及点选/滑动两类 `w` 的基本结构。
+challenge 更新和协议错误。Rust 测试覆盖矩形指派、滑动背景与轨迹、极验自定义 Base64，以及点选/滑动
+两类 `w` 的基本结构。
 
 ## 许可
 

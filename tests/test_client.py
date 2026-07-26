@@ -8,7 +8,6 @@ from gtlv import (
     Client,
     ProtocolError,
     SolverRequiredError,
-    V3Client,
     VerificationError,
 )
 
@@ -205,17 +204,6 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         client = Client(http_client=BrokenHTTP())
         with self.assertRaises(ProtocolError):
             await client.solve("GT", "CH")
-
-    async def test_compatibility_names_return_bare_validate(self):
-        self.assertIs(V3Client, Client)
-        client = V3Client(
-            click_solver=StubSolver(),
-            http_client=FakeHTTPClient("click"),
-            get_base_url="https://get.test",
-            visit_base_url="http://visit.test",
-            verify_delay=0,
-        )
-        self.assertEqual(await client.get_validate("GT", "CH"), "VALIDATE")
 
     async def test_solve_registered_combines_fetch_and_solve(self):
         client = Client(

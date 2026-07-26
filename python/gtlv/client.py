@@ -171,16 +171,6 @@ class Client:
             return Validation(gt, final_challenge, validate, "slide")
         raise UnsupportedCaptchaTypeError(captcha_type)
 
-    async def get_validate(self, gt: str, challenge: str) -> str:
-        """Compatibility wrapper returning only ``Validation.validate``."""
-
-        return (await self.solve(gt, challenge)).validate
-
-    async def register(self, url: str = BILIBILI_REGISTER_URL) -> Challenge:
-        """Compatibility alias for :meth:`fetch_challenge`."""
-
-        return await self.fetch_challenge(url)
-
     async def _get_click_solver(self) -> Optional[Any]:
         if self._click_solver is not None or not self._lazy_click_solver:
             return self._click_solver
@@ -203,19 +193,14 @@ class Client:
 
     async def _click_validate(self, gt: str, challenge: str, solver: Any) -> str:
         image_url = await self._get_click_image(gt, challenge)
-        last_error: Optional[BaseException] = None
         for attempt in range(self.max_attempts):
             try:
                 return await self._click_attempt(gt, challenge, image_url, solver)
             except (_RetryableSolveError, VerificationError) as exc:
-                last_error = exc
                 if attempt + 1 >= self.max_attempts:
-                    if isinstance(exc, _RetryableSolveError) and exc.__cause__ is not None:
-                        raise exc.__cause__
-                    raise
+                    raise self._unwrap(exc) from None
                 image_url = await self._refresh_click(gt, challenge)
-        assert last_error is not None
-        raise last_error
+        raise AssertionError("unreachable: max_attempts is at least 1")
 
     async def _click_attempt(
         self, gt: str, challenge: str, image_url: str, solver: Any
@@ -247,20 +232,23 @@ class Client:
         return self._image_url(data, "image_servers", "pic")
 
     async def _slide_validate(self, gt: str, challenge: str) -> tuple[str, str]:
-        last_error: Optional[BaseException] = None
         for attempt in range(self.max_attempts):
             params = await self._get_slide_params(gt, challenge)
             try:
                 validate = await self._slide_attempt(gt, params)
                 return str(params["challenge"]), validate
             except (_RetryableSolveError, VerificationError) as exc:
-                last_error = exc
                 if attempt + 1 >= self.max_attempts:
-                    if isinstance(exc, _RetryableSolveError) and exc.__cause__ is not None:
-                        raise exc.__cause__
-                    raise
-        assert last_error is not None
-        raise last_error
+                    raise self._unwrap(exc) from None
+        raise AssertionError("unreachable: max_attempts is at least 1")
+
+    @staticmethod
+    def _unwrap(exc: BaseException) -> BaseException:
+        """Surface the original solver failure instead of the internal retry marker."""
+
+        if isinstance(exc, _RetryableSolveError) and exc.__cause__ is not None:
+            return exc.__cause__
+        return exc
 
     async def _get_slide_params(self, gt: str, challenge: str) -> Dict[str, Any]:
         data = await self._get_jsonp(
@@ -388,8 +376,3 @@ class Client:
             "isPC": "true",
             "type": captcha_type,
         }
-
-
-# Pre-0.1 compatibility: the library only implements V3, so the shorter Python
-# name is preferred while existing imports keep working.
-V3Client = Client

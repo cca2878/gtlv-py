@@ -191,9 +191,8 @@ fn slide_final_encrypt(track: &str, c: &[u8], s: &str) -> String {
         return track.to_owned();
     }
     let original_len = track.len();
-    // 在【字节】缓冲上插入，与 Go 参考实现 `result[:pos] + string(char) + result[pos:]` 逐字节等价。
-    // 不能用 String::insert：插入位置按原始长度取模，可能落在前一次插入的多字节字符中间，
-    // String::insert 会 panic（PyO3 抛 BaseException，调用方的重试根本捕获不到）。
+    // 在字节缓冲上插入，与 Go 的 `result[:pos] + string(char) + result[pos:]` 等价。
+    // 不能用 String::insert：位置按原始长度取模，可能落在前次插入的多字节字符中间而 panic。
     let mut output = track.as_bytes().to_vec();
     for pair in s.as_bytes().chunks_exact(2) {
         let Ok(pair) = std::str::from_utf8(pair) else {
@@ -207,7 +206,7 @@ fn slide_final_encrypt(track: &str, c: &[u8], s: &str) -> String {
             + u64::from(c[2]) * value_u64
             + u64::from(c[4]))
             % original_len as u64;
-        // Go 的 string(byte) 取该码点的 UTF-8 编码；≥0x80 时是 2 字节，与此处一致。
+        // Go 的 string(byte) 取该码点的 UTF-8 编码，≥0x80 时同为 2 字节。
         let mut encoded = [0_u8; 4];
         let encoded = char::from(value).encode_utf8(&mut encoded).as_bytes();
         output.splice(
@@ -215,7 +214,7 @@ fn slide_final_encrypt(track: &str, c: &[u8], s: &str) -> String {
             encoded.iter().copied(),
         );
     }
-    // 字节位插入可能切断多字节序列；Go 侧后续 json.Marshal 同样会把非法 UTF-8 替换为 U+FFFD。
+    // 字节位插入可能切断多字节序列；Go 的 json.Marshal 同样把非法 UTF-8 换成 U+FFFD。
     String::from_utf8_lossy(&output).into_owned()
 }
 

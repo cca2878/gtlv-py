@@ -1,7 +1,9 @@
-"""GeeTest V3 local solvers and optional async orchestration."""
+"""GeeTest V3 local solvers and async orchestration."""
+
+from importlib.metadata import PackageNotFoundError, version
 
 from ._native import ClickResult, SlideResult, Solver, click_w, slide_w, solve_slide
-from .client import BILIBILI_REGISTER_URL, Challenge, Client, V3Client, Validation
+from .client import BILIBILI_REGISTER_URL, Challenge, Client, Validation
 from .exceptions import (
     GtlvError,
     ProtocolError,
@@ -10,7 +12,10 @@ from .exceptions import (
     VerificationError,
 )
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("gtlv")
+except PackageNotFoundError:  # source tree without an install
+    __version__ = "0.0.0.dev0"
 
 __all__ = [
     "BILIBILI_REGISTER_URL",
@@ -23,7 +28,6 @@ __all__ = [
     "Solver",
     "SolverRequiredError",
     "UnsupportedCaptchaTypeError",
-    "V3Client",
     "Validation",
     "VerificationError",
     "click_w",

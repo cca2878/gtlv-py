@@ -1,10 +1,8 @@
 //! gtlv 的 Python 绑定（PyO3 本地核）。
 //!
-//! **只导出纯本地原语**：点选推理、滑动求解、w 加密。网络（拉参数/下载图/提交 verify）与编排
-//! （2s 时延锚点、换图重试）在 wheel 的纯 Python async 壳中实现；Rust 侧不含 reqwest/TLS。
-//!
-//! 模型由 `gtlv-core` 经 `include_bytes!` 携带，本壳无需任何模型文件或临时目录。
-//! 推理引擎（tract）加载与 optimize 较慢，故 `Solver` 一次构造、多次复用（勿每次调用新建）。
+//! 只导出纯本地原语：点选推理、滑动求解、w 加密。网络与编排（2s 时延锚点、换图重试）在
+//! Python 侧，故此处不含 reqwest/TLS。模型由 `gtlv-core` 经 `include_bytes!` 携带，
+//! 无需模型文件或临时目录。
 
 mod crypto;
 mod matching;
@@ -41,10 +39,8 @@ impl ClickResult {
 
 /// 点选求解器：进程内构造一次、反复调用 `solve`。
 ///
-/// 构造开销以 tract 的 optimize 为主（数百毫秒），**不要每次求解都新建**——上游 ClickPy 的
-/// 每调用一次 `ClickPy()` 是反模式，本绑定刻意把它做成显式可复用对象。
-///
-/// 并发：内部以互斥串行化，`solve` 可从多个线程调用（验证码低频，串行足矣）。
+/// 构造开销以 tract 的 optimize 为主（数百毫秒），别每次求解都新建。
+/// `solve` 可从多个线程调用，内部以互斥串行化。
 #[pyclass(frozen)]
 pub struct Solver {
     engine: Mutex<Engine>,
@@ -71,7 +67,7 @@ impl Solver {
         if image.is_empty() {
             return Err(PyValueError::new_err("empty image"));
         }
-        // 推理是纯计算、无 Python 对象访问：释放 GIL，让 Python 侧协程/线程并行推进。
+        // 推理不碰 Python 对象，释放 GIL 让调用方的协程/线程继续推进。
         let result = py.allow_threads(|| {
             let engine = self.engine.lock().map_err(|_| "engine mutex poisoned")?;
             let timer = PerfTimer::new(false);

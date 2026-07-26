@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main] # dev = snapshot verification; main = formal (post-merge)
+  pull_request:
+    branches: [main] # gate the dev -> main PR
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Rust + Python (lint · test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: gtlv-py
+
+      # gtlv-core is a separate repository reached through a path dependency, so
+      # it has to sit next to this checkout for the extension to build at all.
+      # Switching that dependency to a pinned git rev would remove this step.
+      - uses: actions/checkout@v7
+        with:
+          repository: cca2878/gtlv-core
+          ref: main
+          path: gtlv-core
+
+      # Honor rust-toolchain.toml so CI uses the same toolchain as local `make lint`.
+      - name: Install pinned Rust toolchain
+        working-directory: gtlv-py
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gtlv-py
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install dev dependencies
+        run: python -m pip install --upgrade "maturin>=1.0,<2.0" "mypy>=1.19"
+
+      - name: cargo fmt
+        working-directory: gtlv-py
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        working-directory: gtlv-py
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: gtlv-py
+        run: cargo test
+
+      # Builds the extension through maturin and installs it, which is also what
+      # exercises the embedded models coming from gtlv-core.
+      - name: Install the package
+        working-directory: gtlv-py
+        run: python -m pip install .
+
+      - name: mypy
+        working-directory: gtlv-py
+        env:
+          MYPYPATH: python
+        run: mypy --python-version 3.10 python/gtlv tests
+
+      - name: Python tests
+        working-directory: gtlv-py
+        run: python -m unittest discover -s tests

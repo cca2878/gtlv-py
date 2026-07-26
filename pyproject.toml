@@ -4,8 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "gtlv"
-version = "0.1.0"
-description = "Pure-local GeeTest V3 solvers with an optional async Python client"
+# Version lives in Cargo.toml; maturin propagates it here.
+dynamic = ["version"]
+description = "Local GeeTest V3 solving primitives with an async client, no runtime dependencies"
 requires-python = ">=3.9"
 license = { text = "AGPL-3.0-only" }
 readme = "README.md"
@@ -15,8 +16,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Recognition",
 ]
 
+[project.urls]
+Repository = "https://github.com/cca2878/gtlv-py"
+
 [project.optional-dependencies]
-# 运行期零第三方依赖：默认 HTTP 客户端走标准库 urllib（见 gtlv/_http.py）。
 dev = ["maturin>=1.0,<2.0", "mypy>=1.19"]
 
 [tool.maturin]

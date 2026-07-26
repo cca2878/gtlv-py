@@ -1,11 +1,8 @@
-"""Minimal async HTTP GET over the standard library only.
+"""Async HTTP GET over the standard library, so the wheel needs no dependencies.
 
-The wheel deliberately ships with **no third-party Python dependencies**: a solve
-needs a handful of plain GETs, which ``urllib`` already does. Blocking calls run
-in a worker thread so the event loop keeps turning.
-
-Anything exposing ``async get(url, params=...) -> response`` can still be injected
-into :class:`gtlv.Client` (httpx, aiohttp, a test double); this is only the default.
+A solve is a handful of plain GETs, which ``urllib`` already does; the blocking
+calls run in a worker thread. :class:`gtlv.Client` accepts any object exposing
+``async get(url, params=...)``, so httpx or aiohttp can replace this.
 """
 
 from __future__ import annotations

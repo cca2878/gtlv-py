@@ -6,12 +6,16 @@ build-backend = "maturin"
 name = "gtlv"
 # Version lives in Cargo.toml; maturin propagates it here.
 dynamic = ["version"]
-description = "Local GeeTest V3 solving primitives with an async client, no runtime dependencies"
-requires-python = ">=3.9"
+description = "Local GeeTest V3 click and slide solving with an async client and embedded models"
+requires-python = ">=3.10"
 license = { text = "AGPL-3.0-only" }
 readme = "README.md"
 classifiers = [
     "Programming Language :: Rust",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering :: Image Recognition",
 ]

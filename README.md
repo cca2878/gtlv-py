@@ -3,7 +3,7 @@
 极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，
 其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
 
-当前版本为 `0.1.0`，要求 CPython 3.9+。
+当前版本为 `0.1.0`，要求 CPython 3.10+。
 
 ## 主要能力
 
@@ -237,7 +237,7 @@ GtlvError
 
 ## 开发与验证
 
-需要 CPython 3.9+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
+需要 CPython 3.10+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
 会自动选择该工具链。
 
 推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，以固定 revision 的 git

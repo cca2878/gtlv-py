@@ -11,8 +11,9 @@ name = "_native"
 crate-type = ["cdylib"]
 
 [dependencies]
-# 纯核（推理 + 内嵌模型）；模型经 include_bytes! 随 core 携带，本壳无需任何模型文件。
-gtlv-core = { path = "../gtlv-core" }
+# 推理核与内嵌模型。模型随该 crate 携带，本包无需任何模型文件。
+# 固定到具体 revision：模型即其产物的一部分，升级须是显式动作。
+gtlv-core = { git = "https://github.com/cca2878/gtlv-core", rev = "30ab9063e6ef2059075011e7f4f5cf463fefb8d5" }
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc", "block-padding"] }
 hex = "0.4"

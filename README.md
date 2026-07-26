@@ -229,16 +229,9 @@ GtlvError
 需要 CPython 3.9+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
 会自动选择该工具链。
 
-推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，当前以相对路径
-`../gtlv-core` 引用，**因此本仓需与它同级检出才能构建**，单独克隆本仓会因找不到该依赖而失败：
-
-```
-some-dir/
-├── gtlv-core/
-└── gtlv-py/
-```
-
-出于同样的原因本仓暂不提供 sdist，请从预编译 wheel 安装。
+推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，以固定 revision 的 git
+依赖引入，由 cargo 自动获取，无需另行检出。该 revision 决定了内置的模型版本，升级须显式修改
+`Cargo.toml`。
 
 ```bash
 python -m pip install 'maturin>=1,<2' 'mypy>=1.19'

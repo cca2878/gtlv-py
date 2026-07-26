@@ -1,8 +1,8 @@
 """Slide captcha solving: background restore, gap detection, track generation.
 
-GeeTest serves the slide background as 52 shuffled slices. Restoring it and
-locating the gap are array operations, so they run through numpy rather than
-per-pixel Python loops.
+GeeTest serves the slide background as 52 shuffled slices. Restoring it is a
+block copy, and locating the gap is a per-column reduction over an image
+difference; Pillow covers both, so no array library is needed.
 """
 
 from __future__ import annotations
@@ -13,8 +13,7 @@ import random
 from dataclasses import dataclass
 from typing import List, Sequence, Tuple
 
-import numpy as np
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageChops, UnidentifiedImageError
 
 from .exceptions import UnsolvableImageError
 
@@ -60,50 +59,57 @@ def solve(bg: bytes, fullbg: bytes) -> SlideResult:
     return SlideResult(distance=distance, encrypted_track=_encode_track(_make_track(distance)))
 
 
-def _restore(data: bytes) -> np.ndarray:
-    """把乱序切片重排成完整背景，返回 RGB 数组。"""
+def _restore(data: bytes) -> Image.Image:
+    """把乱序切片重排成完整背景。"""
 
     try:
         image = Image.open(io.BytesIO(data)).convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise UnsolvableImageError("cannot decode background image") from exc
-    source = np.asarray(image)
-    height, width = source.shape[:2]
+    width, height = image.size
     if width < 310 or height < _RESTORED_HEIGHT:
         raise UnsolvableImageError(
             "background too small: {}x{} (need at least 310x160)".format(width, height)
         )
 
-    restored = np.zeros((_RESTORED_HEIGHT, _RESTORED_WIDTH, 3), dtype=np.uint8)
+    restored = Image.new("RGB", (_RESTORED_WIDTH, _RESTORED_HEIGHT))
     for index, offset in enumerate(_OFFSETS):
         source_x = (offset % 26) * _SOURCE_STRIDE
         source_y = _SLICE_HEIGHT if offset > 25 else 0
         target_x = (index % 26) * _SLICE_WIDTH
         target_y = _SLICE_HEIGHT if index > 25 else 0
-        restored[target_y : target_y + _SLICE_HEIGHT, target_x : target_x + _SLICE_WIDTH] = source[
-            source_y : source_y + _SLICE_HEIGHT, source_x : source_x + _SLICE_WIDTH
-        ]
+        slice_box = (source_x, source_y, source_x + _SLICE_WIDTH, source_y + _SLICE_HEIGHT)
+        restored.paste(image.crop(slice_box), (target_x, target_y))
     return restored
 
 
-def _find_gap(bg: np.ndarray, fullbg: np.ndarray) -> int:
+def _find_gap(bg: Image.Image, fullbg: Image.Image) -> int:
     """返回差异最大的列，即缺口的水平位置。"""
 
-    height = min(bg.shape[0], fullbg.shape[0])
-    width = min(bg.shape[1], fullbg.shape[1])
+    width = min(bg.width, fullbg.width)
+    height = min(bg.height, fullbg.height)
     if width <= 2 * _EDGE_MARGIN or height == 0:
         return 0
 
-    difference = np.abs(bg[:height, :width].astype(np.int32) - fullbg[:height, :width].astype(np.int32))
-    per_pixel = difference.sum(axis=2)
-    per_pixel[per_pixel <= _NOISE_FLOOR] = 0
-    per_column = per_pixel.sum(axis=0)
+    box = (0, 0, width, height)
+    difference = ImageChops.difference(bg.crop(box), fullbg.crop(box)).tobytes()
+    # 通道切片与 map(sum, zip(...)) 都在 C 层完成，只有逐列累加留在 Python。
+    per_pixel = list(map(sum, zip(difference[0::3], difference[1::3], difference[2::3])))
+
+    per_column = [0] * width
+    for row_start in range(0, len(per_pixel), width):
+        for x, value in enumerate(per_pixel[row_start : row_start + width]):
+            if value > _NOISE_FLOOR:
+                per_column[x] += value
 
     window = per_column[_EDGE_MARGIN : width - _EDGE_MARGIN]
-    if not window.size or window.max() == 0:
+    if not window:
         return 0
-    # argmax 取首个最大值，与逐列严格大于比较的行为一致。
-    return int(window.argmax()) + _EDGE_MARGIN
+    peak = max(window)
+    if peak == 0:
+        return 0
+    # 取首个最大值，与逐列严格大于比较的行为一致。
+    return window.index(peak) + _EDGE_MARGIN
 
 
 def _make_track(distance: int) -> List[Tuple[int, int, int]]:

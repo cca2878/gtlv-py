@@ -1,42 +1,42 @@
 import io
 import unittest
 
-import numpy as np
 from PIL import Image
 
 from gtlv.exceptions import UnsolvableImageError
 from gtlv.slide import _encode_track, _find_gap, _make_track, _restore, solve
 
 
-def _png(array):
+def _png(image):
     buffer = io.BytesIO()
-    Image.fromarray(array).save(buffer, format="PNG")
+    image.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
 class SlideTests(unittest.TestCase):
     def test_restore_produces_the_expected_canvas(self):
-        source = np.zeros((160, 312, 3), dtype=np.uint8)
-        source[:, :, 0] = np.arange(312, dtype=np.uint8)
-        restored = _restore(_png(source))
-        self.assertEqual(restored.shape, (160, 260, 3))
+        source = Image.new("RGB", (312, 160))
+        for x in range(312):
+            for y in range(160):
+                source.putpixel((x, y), (x % 256, 0, 0))
+        self.assertEqual(_restore(_png(source)).size, (260, 160))
 
     def test_restore_rejects_undersized_backgrounds(self):
         with self.assertRaises(UnsolvableImageError):
-            _restore(_png(np.zeros((160, 300, 3), dtype=np.uint8)))
+            _restore(_png(Image.new("RGB", (300, 160))))
 
     def test_restore_rejects_undecodable_bytes(self):
         with self.assertRaises(UnsolvableImageError):
             _restore(b"not an image")
 
     def test_finds_a_synthetic_gap(self):
-        full = np.full((160, 260, 3), 200, dtype=np.uint8)
+        full = Image.new("RGB", (260, 160), (200, 200, 200))
         bg = full.copy()
-        bg[:, 130:138] = 10
+        bg.paste(Image.new("RGB", (8, 160), (10, 10, 10)), (130, 0))
         self.assertEqual(_find_gap(bg, full), 130)
 
     def test_identical_images_have_no_gap(self):
-        full = np.full((160, 260, 3), 200, dtype=np.uint8)
+        full = Image.new("RGB", (260, 160), (200, 200, 200))
         self.assertEqual(_find_gap(full, full.copy()), 0)
 
     def test_solve_rejects_undecodable_bytes(self):

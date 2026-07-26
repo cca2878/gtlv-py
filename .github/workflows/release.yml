@@ -1,0 +1,111 @@
+name: Release
+
+# Build wheels and an sdist, then publish them to PyPI on a version tag.
+# Publishing uses PyPI Trusted Publishing: GitHub mints a short-lived OIDC token
+# that PyPI exchanges for upload credentials, so no API token is stored here.
+#
+# One-time setup on PyPI (Your projects -> Publishing, or a pending publisher for
+# the first release) must match this workflow exactly:
+#   Owner            cca2878
+#   Repository       gtlv-py
+#   Workflow         release.yml
+#   Environment      pypi
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # builds and verifies the matrix without publishing
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v7
+      # PyPI versions are immutable, so catch a mismatch before anything uploads.
+      - run: |
+          tag="${GITHUB_REF_NAME#v}"
+          crate="$(sed -n '0,/^version = /s/^version = "\(.*\)"/\1/p' Cargo.toml)"
+          echo "tag=$tag cargo=$crate"
+          test "$tag" = "$crate"
+
+  wheels:
+    name: wheel ${{ matrix.platform.os }}-${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { os: linux, runner: ubuntu-latest, target: x86_64 }
+          - { os: linux, runner: ubuntu-latest, target: aarch64 }
+          - { os: macos, runner: macos-latest, target: aarch64 }
+          - { os: macos, runner: macos-15-intel, target: x86_64 }
+          - { os: windows, runner: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      # abi3-py39 yields a single wheel per platform, so no interpreter sweep.
+      - uses: PyO3/maturin-action@v1
+        env:
+          # Allow building against an interpreter newer than the newest abi3
+          # version this PyO3 release knows about; the ABI is stable regardless.
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist
+          manylinux: auto
+          sccache: "true"
+
+      # Smoke-test the actual artifact on the one runner that can load it.
+      # A wheel that fails to import must never reach PyPI.
+      - name: Install and test the built wheel
+        if: matrix.platform.os == 'linux' && matrix.platform.target == 'x86_64'
+        run: |
+          python -m pip install dist/*.whl
+          python -m unittest discover -s tests -v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform.os }}-${{ matrix.platform.target }}
+          path: dist
+
+  sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist
+
+  publish:
+    name: publish -> PyPI
+    needs: [guard, wheels, sdist]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gtlv
+    permissions:
+      id-token: write # required for Trusted Publishing; no token secret is used
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      # A rejected upload still burns the version number, so validate metadata
+      # and README rendering first.
+      - run: pipx run twine check dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1

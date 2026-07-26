@@ -206,7 +206,7 @@ Client(
 
 - 点选本地求解失败，或服务端明确拒绝答案时，通过 `refresh.php` 换图后重试；
 - 滑动本地求解失败，或服务端明确拒绝答案时，重新获取整组参数、图片和新 challenge；
-- HTTP、JSON/JSONP、字段缺失和其他协议错误不会被当成识别失败而静默重试；
+- HTTP、JSON/JSONP、字段缺失及其他协议错误不会被视作识别失败而静默重试；
 - 达到 `max_attempts` 后抛出最后一次可重试错误。
 
 库定义的异步客户端异常层级：
@@ -229,8 +229,8 @@ GtlvError
 需要 CPython 3.9+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
 会自动选择该工具链。
 
-推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，目前以 **path 依赖**
-`../gtlv-core` 引入，因此本仓必须与 `gtlv-core` **同级检出**才能构建：
+推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，当前以相对路径
+`../gtlv-core` 引用，**因此本仓需与它同级检出才能构建**，单独克隆本仓会因找不到该依赖而失败：
 
 ```
 some-dir/
@@ -238,9 +238,7 @@ some-dir/
 └── gtlv-py/
 ```
 
-> **发布前须改成 git rev 依赖。** path 依赖打不进 sdist，单独 `git clone` 本仓也无法构建。
-> 待 `gtlv-core` 发布后把 `Cargo.toml` 改为 `gtlv-core = { git = "...", rev = "..." }`
-> 即可解除该约束（CI 里同级检出 core 的那一步也可随之删除）。
+出于同样的原因本仓暂不提供 sdist，请从预编译 wheel 安装。
 
 ```bash
 python -m pip install 'maturin>=1,<2' 'mypy>=1.19'

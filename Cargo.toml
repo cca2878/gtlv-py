@@ -21,8 +21,8 @@ md5 = "0.7"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 rand = "0.8"
 rsa = "0.9"
-# preserve_order：payload 的键序必须与 Go 参考实现（浏览器拟真序 lang,passtime,a,tt,ep,…）一致。
-# serde_json 默认用 BTreeMap 会按字母序重排，改变发给极验的指纹。
+# preserve_order：w 载荷的键序需与浏览器实际发出的顺序一致，
+# 而 serde_json 默认按字母序重排，会改变发给极验的指纹。
 serde_json = { version = "1", features = ["preserve_order"] }
 
 [profile.release]

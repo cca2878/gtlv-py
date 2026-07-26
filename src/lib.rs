@@ -39,7 +39,7 @@ impl ClickResult {
 
 /// 点选求解器：进程内构造一次、反复调用 `solve`。
 ///
-/// 构造开销以 tract 的 optimize 为主（数百毫秒），别每次求解都新建。
+/// 构造开销以模型加载与图优化为主（数百毫秒），应复用而非每次求解都新建。
 /// `solve` 可从多个线程调用，内部以互斥串行化。
 #[pyclass(frozen)]
 pub struct Solver {

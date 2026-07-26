@@ -46,7 +46,7 @@ jobs:
           - { os: windows, runner: windows-latest, target: x64 }
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           # Pinned rather than "3.x": abi3 fixes the output ABI at py310 no matter
           # which interpreter builds it, so a floating latest only adds the risk of
@@ -73,7 +73,7 @@ jobs:
           python -m pip install dist/*.whl
           python -m unittest discover -s tests -v
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.platform.os }}-${{ matrix.platform.target }}
           path: dist
@@ -87,7 +87,7 @@ jobs:
         with:
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-sdist
           path: dist
@@ -103,7 +103,7 @@ jobs:
     permissions:
       id-token: write # required for Trusted Publishing; no token secret is used
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           path: dist

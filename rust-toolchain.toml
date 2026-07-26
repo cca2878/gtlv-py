@@ -1,0 +1,13 @@
+# 固定 Rust 工具链，确保本地与 CI 用完全相同的版本。
+#
+# 为什么：clippy 每个 Rust 版本都会新增/收紧 lint，配合 CI 的 `-D warnings`，
+# 一份未改动的代码只因 CI 跑了更新的 stable 就可能报错（本仓曾因本地 1.96 /
+# CI stable=1.97 出现此问题）。固定版本后，本地 `make check` 与 CI 同版，
+# 不会再出现"本地过、CI 挂"。
+#
+# 升级流程：本地先 `rustup toolchain install <新版本>`，跑 `make check` 全绿，
+# 再把下面的 channel 改成该版本一并提交。
+[toolchain]
+channel = "1.96.1"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-wasip1"]

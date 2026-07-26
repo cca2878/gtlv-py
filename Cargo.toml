@@ -1,0 +1,31 @@
+[package]
+name = "gtlv-py"
+version = "0.1.0"
+edition = "2021"
+description = "极验 V3 点选/滑动求解的 Python 绑定：Rust 本地原语 + Python async 编排"
+license = "AGPL-3.0-only"
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+# 纯核（推理 + 内嵌模型）；模型经 include_bytes! 随 core 携带，本壳无需任何模型文件。
+gtlv-core = { path = "../gtlv-core" }
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+hex = "0.4"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+md5 = "0.7"
+pyo3 = { version = "0.23", features = ["extension-module"] }
+rand = "0.8"
+rsa = "0.9"
+# preserve_order：payload 的键序必须与 Go 参考实现（浏览器拟真序 lang,passtime,a,tt,ep,…）一致。
+# serde_json 默认用 BTreeMap 会按字母序重排，改变发给极验的指纹。
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

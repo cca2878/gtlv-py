@@ -1,0 +1,11 @@
+/target/
+*.so
+__pycache__/
+*.egg-info/
+/dist/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+.idea/
+.vscode/

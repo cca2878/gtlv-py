@@ -14,17 +14,7 @@ crate-type = ["cdylib"]
 # 推理核与内嵌模型。模型随该 crate 携带，本包无需任何模型文件。
 # 固定到具体 revision：模型即其产物的一部分，升级须是显式动作。
 gtlv-core = { git = "https://github.com/cca2878/gtlv-core", rev = "30ab9063e6ef2059075011e7f4f5cf463fefb8d5" }
-aes = "0.8"
-cbc = { version = "0.1", features = ["alloc", "block-padding"] }
-hex = "0.4"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
-md5 = "0.7"
 pyo3 = { version = "0.23", features = ["extension-module"] }
-rand = "0.8"
-rsa = "0.9"
-# preserve_order：w 载荷的键序需与浏览器实际发出的顺序一致，
-# 而 serde_json 默认按字母序重排，会改变发给极验的指纹。
-serde_json = { version = "1", features = ["preserve_order"] }
 
 [profile.release]
 opt-level = 3

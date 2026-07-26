@@ -1,16 +1,25 @@
-"""GeeTest V3 local solvers and async orchestration."""
+"""GeeTest V3 local solvers and async orchestration.
+
+:class:`Client` covers the whole flow. :class:`Solver` and :func:`solve_slide` are
+for solving images you already hold. ``w`` generation lives in :mod:`gtlv.crypto`;
+it is only meaningful inside the protocol flow, where the payload's timing has to
+match when the answer is actually submitted.
+"""
 
 from importlib.metadata import PackageNotFoundError, version
 
-from ._native import ClickResult, SlideResult, Solver, click_w, slide_w, solve_slide
 from .client import BILIBILI_REGISTER_URL, Challenge, Client, Validation
 from .exceptions import (
     GtlvError,
     ProtocolError,
     SolverRequiredError,
+    UnsolvableImageError,
     UnsupportedCaptchaTypeError,
     VerificationError,
 )
+from .slide import SlideResult
+from .slide import solve as solve_slide
+from .solver import ClickResult, Solver
 
 try:
     __version__ = version("gtlv")
@@ -27,10 +36,9 @@ __all__ = [
     "SlideResult",
     "Solver",
     "SolverRequiredError",
+    "UnsolvableImageError",
     "UnsupportedCaptchaTypeError",
     "Validation",
     "VerificationError",
-    "click_w",
-    "slide_w",
     "solve_slide",
 ]

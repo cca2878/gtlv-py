@@ -15,6 +15,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering :: Image Recognition",
 ]
+dependencies = [
+    "cryptography>=41",  # w 参数所需的 AES-CBC 与 RSA
+    "numpy>=1.21",       # 滑动背景还原与缺口检测的数组运算
+    "pillow>=9",         # 滑动背景图解码
+]
 
 [project.urls]
 Repository = "https://github.com/cca2878/gtlv-py"

@@ -9,6 +9,10 @@ class ProtocolError(GtlvError):
     """The remote endpoint returned malformed or incomplete protocol data."""
 
 
+class UnsolvableImageError(GtlvError):
+    """本地求解无法处理该图像；更换图像后重试可能成功。"""
+
+
 class VerificationError(GtlvError):
     """GeeTest rejected a submitted answer; replacing the image may succeed."""
 

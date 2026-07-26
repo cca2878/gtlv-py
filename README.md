@@ -1,8 +1,7 @@
 # gtlv-py
 
-极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。项目采用
-**Rust/PyO3 本地原语 + Python async 协议编排**的分层方式：模型推理、图像处理和 `w` 参数生成可
-完全离线运行，网络请求、重试和业务接入则保留在 Python 层。
+极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，
+其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
 
 当前版本为 `0.1.0`，要求 CPython 3.9+。
 
@@ -18,9 +17,11 @@
   临时目录、ONNX Runtime 或额外的系统推理动态库。
 - **类型支持**：包内包含 `.pyi` 和 `py.typed`，可供 mypy 等类型检查器使用。
 
-Rust 扩展不包含网络栈。`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`）——**运行期零第三方
-Python 依赖**；也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或
-进行完全离线的协议测试。
+网络层不在 Rust 中。`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`），无需 HTTP 依赖；
+也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或进行离线协议测试。
+
+运行期依赖为 `cryptography`（`w` 所需的 AES-CBC 与 RSA）、`numpy` 与 `pillow`（滑动背景还原与
+缺口检测）。这几项 Python 标准库均无对应实现，故采用生态中的成熟库，而非自行实现。
 
 ## 架构
 
@@ -33,12 +34,19 @@ Python async Client（唯一网络层）
     └─ asyncio.to_thread
            │
            ▼
-PyO3 本地扩展 gtlv._native
-    ├─ Solver / gtlv-core       点选推理
-    ├─ matching.rs              矩形最优指派
-    ├─ slide.rs                 滑动求解与轨迹
-    └─ crypto.rs                点选/滑动 w
+Python 求解层
+    ├─ gtlv.solver              前置校验 + 指派 → 点击坐标
+    ├─ gtlv.matching            矩形最优指派
+    ├─ gtlv.slide               背景还原、缺口识别、轨迹生成与编码
+    └─ gtlv.crypto              点选/滑动 w
+           │
+           ▼
+PyO3 扩展 gtlv._native
+    └─ Detector / gtlv-core     检测框 + 特征向量 + 提示字数
 ```
+
+Rust 侧只做推理。指派、`w` 生成与滑动求解都是纯计算，放在 Python 层便于阅读与修改，这一分层与
+Go 实现一致（那里同样只有推理在 Rust）。
 
 点选 `Solver` 的模型加载和 tract 优化有明显的一次性开销，因此应在进程内构造一次并复用。它内部以
 互斥锁串行化推理，可安全地从多个线程调用。`Client` 默认会在首次遇到点选验证码时懒加载并缓存一个
@@ -49,33 +57,25 @@ PyO3 本地扩展 gtlv._native
 发布到包索引后可安装：
 
 ```bash
-python -m pip install gtlv   # 无需任何额外依赖，网络层走标准库
+python -m pip install gtlv
 ```
 
-只调用本地原语或自行注入 HTTP 客户端时不需要 `client` extra。
-
-从源码安装时，`gtlv-py` 当前通过相邻的 `../gtlv-core` path dependency 构建，因此目录需保持为：
-
-```text
-gtlv-core/
-gtlv-py/
-```
+从源码安装：
 
 ```bash
-cd gtlv-py
 python -m pip install 'maturin>=1,<2'
 python -m maturin develop --release
 ```
 
-生成的是与 Python 版本和目标平台匹配的原生 wheel，并非 `py3-none-any` 通用 wheel。独立发布前应将
-`gtlv-core` 切换为锁定 revision 的远程依赖，避免构建依赖当前工作区布局。
+生成的是与 Python 版本和目标平台匹配的原生 wheel，并非 `py3-none-any` 通用 wheel。
 
 ## 本地原语
 
 本地 API 不发起网络请求，可直接用于离线图片、定制编排或测试：
 
 ```python
-from gtlv import Solver, click_w, solve_slide, slide_w
+from gtlv import Solver, solve_slide
+from gtlv.crypto import click_w, slide_w  # 仅在自行编排协议时需要
 
 gt = "..."
 challenge = "..."
@@ -100,8 +100,8 @@ slide_payload = slide_w(
 )
 ```
 
-`Solver.solve()` 和 `solve_slide()` 在 Rust 计算期间释放 GIL。async 客户端还会通过
-`asyncio.to_thread()` 调用它们，避免耗时的本地计算占用事件循环线程。
+模型推理期间会释放 GIL。async 客户端还会通过 `asyncio.to_thread()` 调用求解接口，避免耗时的
+本地计算占用事件循环线程。
 
 公开的本地接口如下：
 
@@ -110,11 +110,14 @@ slide_payload = slide_w(
 | `Solver()` | 加载内嵌模型；应一次构造、反复使用 |
 | `Solver.solve(image, conf_threshold=0.5)` | 求解一张 PNG/JPEG 点选图，返回 `ClickResult` |
 | `solve_slide(bg, fullbg)` | 求解两张乱序滑动背景，返回 `SlideResult` |
-| `click_w(coords, gt, challenge)` | 根据有序点击坐标生成点选 `w` |
-| `slide_w(distance, encrypted_track, gt, challenge, c, s)` | 生成滑动 `w` |
+| `gtlv.crypto.click_w(coords, gt, challenge)` | 根据有序点击坐标生成点选 `w` |
+| `gtlv.crypto.slide_w(distance, encrypted_track, gt, challenge, c, s)` | 生成滑动 `w` |
 
-参数为空、距离非正等调用错误会抛出 `ValueError`；图片解码、模型加载或求解失败会抛出
-`RuntimeError`。
+`w` 生成不在顶层命名空间中：其载荷含与提交时刻绑定的时延锚点，脱离 `Client` 单独使用容易出错，
+仅在自行编排整套协议时才需要。
+
+参数为空、距离非正等调用错误会抛出 `ValueError`；图像无法求解（解码失败、未检出目标、缺口未定位）
+会抛出 `UnsolvableImageError`，调用方应更换图像重试。
 
 ## 完整 V3 流程
 
@@ -214,14 +217,14 @@ Client(
 ```text
 GtlvError
 ├─ ProtocolError
+├─ UnsolvableImageError
 ├─ VerificationError
 ├─ SolverRequiredError
 └─ UnsupportedCaptchaTypeError
 ```
 
-`VerificationError` 提供服务端的 `result` 和 `message` 属性；
-`UnsupportedCaptchaTypeError` 提供 `captcha_type` 属性。参数为空等编程错误仍使用标准
-`ValueError`，未安装默认客户端依赖时会抛出带安装提示的 `ImportError`。响应状态码失败会包装为
+`VerificationError` 提供服务端的 `result` 和 `message` 属性；`UnsupportedCaptchaTypeError`
+提供 `captcha_type` 属性。参数为空等编程错误仍使用标准 `ValueError`。响应状态码失败会包装为
 `ProtocolError`；HTTP 客户端在 `get()` 内直接抛出的连接、超时等传输异常则保持原类型向上传播。
 
 ## 开发与验证
@@ -238,11 +241,9 @@ python -m pip install 'maturin>=1,<2' 'mypy>=1.19'
 
 make fmt             # cargo fmt
 make lint            # fmt check + clippy -D warnings + mypy
-make test-rust       # Rust 单元测试
 make develop         # release 模式安装扩展到当前 Python 环境
-make test-python     # Python unittest
+make test            # develop + Python unittest
 make wheel           # release wheel，输出到 target/wheels/
-make test            # test-rust + develop + test-python
 ```
 
 Makefile 不探测仓库外的虚拟环境，统一使用可覆盖的 `PYTHON` 和 `CARGO`：
@@ -251,9 +252,9 @@ Makefile 不探测仓库外的虚拟环境，统一使用可覆盖的 `PYTHON` �
 make PYTHON=python3.12 CARGO=cargo test
 ```
 
-Python 客户端测试使用注入的假 HTTP 客户端，不访问真实网络，覆盖点选/滑动分派、懒加载、换图重试、
-challenge 更新和协议错误。Rust 测试覆盖矩形指派、滑动背景与轨迹、极验自定义 Base64，以及点选/滑动
-两类 `w` 的基本结构。
+测试全部不访问网络。客户端测试使用注入的假 HTTP 客户端，覆盖点选/滑动分派、懒加载、换图重试、
+challenge 更新与协议错误；其余覆盖矩形指派、滑动背景还原与轨迹编码、极验自定义 Base64，以及 `w`
+载荷的键序——其中滑动编码与背景还原的结果直接与 Go 实现的输出逐字节比对。
 
 ## 许可
 

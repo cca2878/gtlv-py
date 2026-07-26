@@ -1,7 +1,7 @@
 """Async GeeTest V3 orchestration.
 
-Networking deliberately lives in Python. The Rust extension only performs local
-inference, slide image processing, and ``w`` generation.
+The Rust extension covers model inference only; assignment, ``w`` generation,
+slide solving and networking are all Python.
 """
 
 from __future__ import annotations
@@ -14,13 +14,16 @@ from typing import Any, Dict, Iterator, Literal, Mapping, Optional, Sequence
 from urllib.parse import urljoin
 
 from ._http import HttpClient
-from ._native import Solver, click_w, slide_w, solve_slide
+from .crypto import click_w, slide_w
 from .exceptions import (
     ProtocolError,
     SolverRequiredError,
+    UnsolvableImageError,
     UnsupportedCaptchaTypeError,
     VerificationError,
 )
+from .slide import solve as solve_slide
+from .solver import Solver
 
 DEFAULT_GET_BASE_URL = "https://api.geetest.com"
 DEFAULT_VISIT_BASE_URL = "http://api.geevisit.com"
@@ -29,6 +32,10 @@ BILIBILI_REGISTER_URL = (
 )
 
 _DEFAULT_SOLVER = object()
+
+# 本地求解失败的异常。除自带求解器的 UnsolvableImageError 外，一并容纳注入的
+# 第三方求解器惯用的 RuntimeError/ValueError，使其同样触发换图重试。
+_LOCAL_SOLVE_ERRORS = (UnsolvableImageError, RuntimeError, ValueError)
 
 
 @dataclass(frozen=True)
@@ -79,8 +86,8 @@ class Client:
 
     ``http_client`` must expose an async ``get(url, params=...)`` method returning a
     response with ``raise_for_status``/``text``/``content``/``json``. Omit it to use
-    the bundled stdlib client — the wheel has no third-party Python dependencies —
-    or inject httpx/aiohttp if you want pooling.
+    the bundled stdlib client, which needs no HTTP dependency, or inject
+    httpx/aiohttp if you want pooling.
 
     Omit ``click_solver`` to lazily create and cache the bundled local solver when
     a click challenge is first encountered. Pass ``None`` to explicitly disable
@@ -209,7 +216,7 @@ class Client:
         image = await self._download(image_url)
         try:
             result = await asyncio.to_thread(solver.solve, image)
-        except (RuntimeError, ValueError) as exc:
+        except _LOCAL_SOLVE_ERRORS as exc:
             raise _RetryableSolveError() from exc
         coords = list(result.coords)
         if not coords:
@@ -271,7 +278,7 @@ class Client:
         )
         try:
             result = await asyncio.to_thread(solve_slide, bg, fullbg)
-        except (RuntimeError, ValueError) as exc:
+        except _LOCAL_SOLVE_ERRORS as exc:
             raise _RetryableSolveError() from exc
         w = slide_w(
             result.distance,

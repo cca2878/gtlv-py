@@ -21,7 +21,7 @@ permissions:
 jobs:
   guard:
     name: Tag matches Cargo.toml
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v7
@@ -38,12 +38,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Two rules govern this matrix.
+        #
+        # Runner versions are pinned rather than floating, so that a released
+        # artifact is reproducible and an unannounced image bump cannot break a
+        # release. Revisit them when an image is marked deprecated.
+        #
+        # Every target is built on a runner of its own architecture, so each job
+        # can install and exercise the wheel it just produced. Keep it that way:
+        # a cross-compiled wheel would ship without ever having been imported.
         platform:
-          - { os: linux, runner: ubuntu-latest, target: x86_64 }
-          - { os: linux, runner: ubuntu-latest, target: aarch64 }
-          - { os: macos, runner: macos-latest, target: aarch64 }
-          - { os: macos, runner: macos-15-intel, target: x86_64 }
-          - { os: windows, runner: windows-latest, target: x64 }
+          - { os: linux, runner: ubuntu-24.04, target: x86_64 }
+          - { os: linux, runner: ubuntu-24.04-arm, target: aarch64 }
+          - { os: macos, runner: macos-26, target: aarch64 }
+          - { os: macos, runner: macos-26-intel, target: x86_64 }
+          - { os: windows, runner: windows-2025, target: x64 }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -65,10 +74,9 @@ jobs:
           manylinux: auto
           sccache: "true"
 
-      # Smoke-test the actual artifact on the one runner that can load it.
       # A wheel that fails to import must never reach PyPI.
       - name: Install and test the built wheel
-        if: matrix.platform.os == 'linux' && matrix.platform.target == 'x86_64'
+        shell: bash # Windows defaults to PowerShell, which does not expand the glob
         run: |
           python -m pip install dist/*.whl
           python -m unittest discover -s tests -v
@@ -80,7 +88,7 @@ jobs:
 
   sdist:
     name: sdist
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: PyO3/maturin-action@v1
@@ -96,7 +104,7 @@ jobs:
     name: publish -> PyPI
     needs: [guard, wheels, sdist]
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/p/gtlv

@@ -1,8 +1,6 @@
-"""Slide captcha solving: background restore, gap detection, track generation.
+"""滑动验证码求解：背景还原、缺口识别与轨迹生成。
 
-GeeTest serves the slide background as 52 shuffled slices. Restoring it is a
-block copy, and locating the gap is a per-column reduction over an image
-difference; Pillow covers both, so no array library is needed.
+极验将滑动背景切成 52 片乱序下发。还原后逐列比较带缺口背景与完整背景，即得缺口位置。
 """
 
 from __future__ import annotations
@@ -93,7 +91,7 @@ def _find_gap(bg: Image.Image, fullbg: Image.Image) -> int:
 
     box = (0, 0, width, height)
     difference = ImageChops.difference(bg.crop(box), fullbg.crop(box)).tobytes()
-    # 通道切片与 map(sum, zip(...)) 都在 C 层完成，只有逐列累加留在 Python。
+    # 三通道求和在 C 层完成，只有逐列累加在 Python。
     per_pixel = list(map(sum, zip(difference[0::3], difference[1::3], difference[2::3])))
 
     per_column = [0] * width
@@ -108,7 +106,7 @@ def _find_gap(bg: Image.Image, fullbg: Image.Image) -> int:
     peak = max(window)
     if peak == 0:
         return 0
-    # 取首个最大值，与逐列严格大于比较的行为一致。
+    # 并列时取最左侧的列。
     return window.index(peak) + _EDGE_MARGIN
 
 

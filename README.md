@@ -1,28 +1,21 @@
 # gtlv-py
 
-极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，
-其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
+极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
 
-当前版本为 `0.1.0`，要求 CPython 3.10+。
+要求 CPython 3.10 及以上。
 
 ## 主要能力
 
-- **点选求解**：复用 `gtlv-core` 的 YOLO 检测和 Siamese 特征提取，根据提示框宽高比确定
-  提示字数，再以矩形最优指派跳过答案区中的干扰字。
+- **点选求解**：复用 `gtlv-core` 的 YOLO 检测和 Siamese 特征提取，根据提示框宽高比确定提示字数，再以矩形最优指派跳过答案区中的干扰字。
 - **滑动求解**：还原乱序背景、识别缺口、生成拟人轨迹并完成极验轨迹编码。
 - **本地加密**：生成点选和滑动 V3 `w` 参数，包括 AES-CBC、RSA 和极验自定义 Base64。
-- **异步编排**：自动判断验证码类型、并发下载滑动背景、补足验证时延、按规则换图重试，并返回
-  类型化结果和异常。
-- **自包含分发**：生产模型由 `gtlv-core` 通过 `include_bytes!` 内嵌。wheel 不需要模型目录、
-  临时目录、ONNX Runtime 或额外的系统推理动态库。
+- **异步编排**：自动判断验证码类型、并发下载滑动背景、补足验证时延、按规则换图重试，并返回类型化结果和异常。
+- **自包含分发**：生产模型由 `gtlv-core` 通过 `include_bytes!` 内嵌。wheel 不需要模型目录、临时目录、ONNX Runtime 或额外的系统推理动态库。
 - **类型支持**：包内包含 `.pyi` 和 `py.typed`，可供 mypy 等类型检查器使用。
 
-网络层不在 Rust 中。`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`），无需 HTTP 依赖；
-也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或进行离线协议测试。
+`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`），无需 HTTP 依赖；也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或进行离线协议测试。
 
-运行期依赖只有两项：`cryptography`（`w` 所需的 AES-CBC 与 RSA）与 `pillow`（滑动背景的解码、
-重排与差分）。两者标准库均无对应实现，故采用生态中的成熟库。滑动求解所需的逐列归约用内置类型
-完成，不引入数组库——它带来的体积远超所省下的几毫秒。
+运行期依赖只有两项：`cryptography` 用于 `w` 所需的 AES-CBC 与 RSA，`pillow` 用于滑动背景的解码、重排与差分。
 
 ## 架构
 
@@ -46,16 +39,11 @@ PyO3 扩展 gtlv._native
     └─ Detector / gtlv-core     检测框 + 特征向量 + 提示字数
 ```
 
-Rust 侧只做推理。指派、`w` 生成与滑动求解都是纯计算，放在 Python 层便于阅读与修改，这一分层与
-Go 实现一致（那里同样只有推理在 Rust）。
-
-点选 `Solver` 的模型加载和 tract 优化有明显的一次性开销，因此应在进程内构造一次并复用。它内部以
-互斥锁串行化推理，可安全地从多个线程调用。`Client` 默认会在首次遇到点选验证码时懒加载并缓存一个
-`Solver`；只处理滑动验证码的进程不会承担模型加载开销。
+`Solver` 的构造需加载模型，耗时数百毫秒，应在进程内构造一次并复用；其内部以互斥锁串行化推理，可从多个线程调用。`Client` 在首次遇到点选验证码时才懒加载并缓存 `Solver`，只处理滑动验证码的进程不承担这项开销。
 
 ## 安装
 
-发布到包索引后可安装：
+从 PyPI 安装：
 
 ```bash
 python -m pip install gtlv
@@ -68,7 +56,7 @@ python -m pip install 'maturin>=1,<2'
 python -m maturin develop --release
 ```
 
-生成的是与 Python 版本和目标平台匹配的原生 wheel，并非 `py3-none-any` 通用 wheel。
+构建产物是与目标平台匹配的原生 wheel，并非 `py3-none-any` 通用 wheel。它针对 CPython 稳定 ABI编译（`cp310-abi3`），同一个 wheel 适用于 3.10 及以上的所有版本。
 
 ## 本地原语
 
@@ -101,8 +89,7 @@ slide_payload = slide_w(
 )
 ```
 
-模型推理期间会释放 GIL。async 客户端还会通过 `asyncio.to_thread()` 调用求解接口，避免耗时的
-本地计算占用事件循环线程。
+模型加载与推理期间均释放 GIL，`Client` 又通过 `asyncio.to_thread()` 调用二者，因此异步程序的事件循环不会被阻塞。
 
 公开的本地接口如下：
 
@@ -114,11 +101,9 @@ slide_payload = slide_w(
 | `gtlv.crypto.click_w(coords, gt, challenge)` | 根据有序点击坐标生成点选 `w` |
 | `gtlv.crypto.slide_w(distance, encrypted_track, gt, challenge, c, s)` | 生成滑动 `w` |
 
-`w` 生成不在顶层命名空间中：其载荷含与提交时刻绑定的时延锚点，脱离 `Client` 单独使用容易出错，
-仅在自行编排整套协议时才需要。
+`w` 的载荷含与提交时刻绑定的时延锚点，须在生成后随即提交。这两个函数位于 `gtlv.crypto`，供自行编排整套协议时调用。
 
-参数为空、距离非正等调用错误会抛出 `ValueError`；图像无法求解（解码失败、未检出目标、缺口未定位）
-会抛出 `UnsolvableImageError`，调用方应更换图像重试。
+参数为空、距离非正等调用错误会抛出 `ValueError`；图像无法求解（解码失败、未检出目标、缺口未定位）会抛出 `UnsolvableImageError`，调用方应更换图像重试。
 
 ## 完整 V3 流程
 
@@ -126,8 +111,7 @@ slide_payload = slide_w(
 
 ### 由库获取（常见）
 
-业务登记接口若为 Bilibili 形状（返回 `data.geetest.gt` 与 `data.geetest.challenge`），
-可一步拿到结果：
+业务登记接口若为 Bilibili 形状（返回 `data.geetest.gt` 与 `data.geetest.challenge`），可一步拿到结果：
 
 ```python
 async with Client(max_attempts=3) as client:
@@ -169,18 +153,13 @@ asyncio.run(main())
 | `captcha_type` | `"click"` 或 `"slide"` |
 | `seccode` | `validate + "|jordan"` |
 
-滑动流程会从极验获取新的 challenge。业务提交必须使用 `result.challenge` 和
-`result.validate` 这一对，不能继续提交传给 `solve()` 的旧 challenge。`result.as_dict()` 返回常见的
-`challenge`、`validate`、`seccode` 三字段，可避免配错。
+滑动流程会从极验获取新的 challenge。业务提交必须使用 `result.challenge` 和`result.validate` 这一对，不能继续提交传给 `solve()` 的旧 challenge。`result.as_dict()` 返回常见的`challenge`、`validate`、`seccode` 三字段，可避免配错。
 
 若只想单独取 challenge，`fetch_challenge()` 返回可解包的 `Challenge`：
 
 ```python
 gt, challenge = await client.fetch_challenge(register_url)
 ```
-
-无论哪种方式，滑动流程都会换用新的 challenge，因此提交业务侧时应使用 `Validation.challenge`
-而非传入的那个。
 
 ## Client 配置
 
@@ -196,29 +175,23 @@ Client(
 )
 ```
 
-- `click_solver` 可注入任何提供同步 `solve(image)` 方法的兼容对象。显式传入 `None` 后，遇到点选会
-  抛出 `SolverRequiredError`。
-- `http_client` 需提供异步 `get(url, params=...)`；其响应对象需按使用场景提供
-  `raise_for_status()`、`json()`、`text` 和 `content`。注入的客户端由调用方持有，`Client.aclose()`
-  不会关闭它。
-- 未注入 `http_client` 时使用内置标准库客户端，它会带浏览器 `User-Agent`（B 站登记端点对未知
-  客户端返回 412）。该客户端无连接池、无需释放，但仍建议用 `async with` 保持写法一致。
+- `click_solver` 可注入任何提供同步 `solve(image)` 方法的兼容对象。显式传入 `None` 后，遇到点选会抛出 `SolverRequiredError`。
+- `http_client` 需提供异步 `get(url, params=...)`；其响应对象需按使用场景提供`raise_for_status()`、`json()`、`text` 和 `content`。注入的客户端由调用方持有，`Client.aclose()`不会关闭它。
+- 未注入 `http_client` 时使用内置标准库客户端，它会带浏览器 `User-Agent`（B 站登记端点对未知客户端返回 412）。该客户端无连接池、无需释放，但仍建议用 `async with` 保持写法一致。
 - `max_attempts` 小于 1 时会按 1 处理。默认只尝试一次，需要换图重试时应显式调大。
-- `verify_delay` 是从本轮图片下载开始到提交 verify 的总时长下限；下载、推理和加密耗时会计入，
-  不会在求解完成后再固定睡满 2 秒。传入负值时按 0 处理。
+- `verify_delay` 是从本轮图片下载开始到提交 verify 的总时长下限；下载、推理和加密耗时会计入，不会在求解完成后再固定睡满 2 秒。传入负值时按 0 处理。
 
 ## 重试与异常
 
 **默认 `max_attempts=1`，即只尝试一次，失败按类型化异常如实抛出。** 需要重试须显式调大。
 
-重试不依赖重新登记，因此 `gt`/`challenge` 由谁获取并不影响其行为：点选经 `refresh.php` 换图后
-仍用同一个 challenge，滑动则重新获取整组参数与新 challenge。服务端拒绝一次后换图重试仍可能通过。
+重试不依赖重新登记，因此 `gt`/`challenge` 由谁获取并不影响其行为：点选经 `refresh.php` 换图后仍用同一个 challenge，滑动则重新获取整组参数与新 challenge。服务端拒绝一次后换图重试仍可能通过。
 
-重试范围刻意保持收窄：
+重试规则：
 
-- 点选本地求解失败，或服务端明确拒绝答案时，通过 `refresh.php` 换图后重试；
-- 滑动本地求解失败，或服务端明确拒绝答案时，重新获取整组参数、图片和新 challenge；
-- HTTP、JSON/JSONP、字段缺失及其他协议错误不会被视作识别失败而静默重试；
+- 点选本地求解失败或服务端拒绝答案时，经 `refresh.php` 换图后重试；
+- 滑动本地求解失败或服务端拒绝答案时，重新获取整组参数、图片和新 challenge；
+- HTTP、JSON/JSONP、字段缺失等协议错误不触发重试，直接抛出；
 - 达到 `max_attempts` 后抛出最后一次可重试错误。
 
 库定义的异步客户端异常层级：
@@ -232,18 +205,13 @@ GtlvError
 └─ UnsupportedCaptchaTypeError
 ```
 
-`VerificationError` 提供服务端的 `result` 和 `message` 属性；`UnsupportedCaptchaTypeError`
-提供 `captcha_type` 属性。参数为空等编程错误仍使用标准 `ValueError`。响应状态码失败会包装为
-`ProtocolError`；HTTP 客户端在 `get()` 内直接抛出的连接、超时等传输异常则保持原类型向上传播。
+`VerificationError` 提供服务端的 `result` 和 `message` 属性；`UnsupportedCaptchaTypeError`提供 `captcha_type` 属性。参数为空等编程错误仍使用标准 `ValueError`。响应状态码失败会包装为`ProtocolError`；HTTP 客户端在 `get()` 内直接抛出的连接、超时等传输异常则保持原类型向上传播。
 
 ## 开发与验证
 
-需要 CPython 3.10+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup
-会自动选择该工具链。
+需要 CPython 3.10+、maturin 和 Rust。仓库通过 `rust-toolchain.toml` 固定 Rust `1.96.1`，rustup会自动选择该工具链。
 
-推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，以固定 revision 的 git
-依赖引入，由 cargo 自动获取，无需另行检出。该 revision 决定了内置的模型版本，升级须显式修改
-`Cargo.toml`。
+推理与内嵌模型来自 [`gtlv-core`](https://github.com/cca2878/gtlv-core)，以固定 revision 的 git依赖引入，由 cargo 自动获取，无需另行检出。该 revision 决定了内置的模型版本，升级须显式修改`Cargo.toml`。
 
 ```bash
 python -m pip install 'maturin>=1,<2' 'mypy>=1.19'
@@ -261,11 +229,8 @@ Makefile 不探测仓库外的虚拟环境，统一使用可覆盖的 `PYTHON` �
 make PYTHON=python3.12 CARGO=cargo test
 ```
 
-测试全部不访问网络。客户端测试使用注入的假 HTTP 客户端，覆盖点选/滑动分派、懒加载、换图重试、
-challenge 更新与协议错误；其余覆盖矩形指派、滑动背景还原与轨迹编码、极验自定义 Base64，以及 `w`
-载荷的键序——其中滑动编码与背景还原的结果直接与 Go 实现的输出逐字节比对。
+测试全部不访问网络。客户端测试使用注入的假 HTTP 客户端，覆盖点选/滑动分派、懒加载、换图重试、challenge 更新与协议错误；其余覆盖矩形指派、滑动背景还原与轨迹编码、极验自定义 Base64 与 `w`载荷的键序。其中滑动编码与背景还原与 Go 实现的输出逐字节比对。
 
 ## 许可
 
-[AGPL-3.0-only](./LICENSE)。点选识别思路参考 CaptchaBreaker；`w` 参数、滑动求解和协议编排沿用
-gtlv 系项目中来自 biliTicker_gt 的 AGPL-3.0 实现。
+[AGPL-3.0-only](./LICENSE)。点选识别思路参考 CaptchaBreaker；`w` 参数、滑动求解和协议编排沿用gtlv 系项目中来自 biliTicker_gt 的 AGPL-3.0 实现。

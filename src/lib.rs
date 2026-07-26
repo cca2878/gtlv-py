@@ -1,7 +1,6 @@
 //! `gtlv-core` 的 Python 绑定。
 //!
-//! 本模块只做一件事：把推理结果交给 Python。检测框、特征向量与提示词字数原样上交，
-//! 指派、`w` 生成与滑动求解都在 Python 层实现。
+//! 检测框、特征向量与提示词字数原样上交 Python；指派、`w` 生成与滑动求解在 Python 层实现。
 //!
 //! 模型由 `gtlv-core` 经 `include_bytes!` 携带，无需模型文件或临时目录。
 
@@ -68,8 +67,7 @@ impl Detector {
     /// 加载内置模型并构造推理器。
     #[new]
     fn new(py: Python<'_>) -> PyResult<Self> {
-        // 加载与图优化耗时数百毫秒且不碰 Python 对象；释放 GIL，避免构造推理器
-        // 的这段时间卡住调用方的事件循环。
+        // 加载不触及 Python 对象；释放 GIL 使调用方的事件循环不被阻塞。
         let engine = py
             .allow_threads(Engine::new)
             .map_err(|e| PyRuntimeError::new_err(format!("load models: {e}")))?;
@@ -89,7 +87,7 @@ impl Detector {
         if image.is_empty() {
             return Err(PyValueError::new_err("empty image"));
         }
-        // 推理不碰 Python 对象，释放 GIL 让调用方的协程或线程继续推进。
+        // 推理不触及 Python 对象；释放 GIL 使调用方的协程或线程不被阻塞。
         let result = py.allow_threads(|| {
             let engine = self.engine.lock().map_err(|_| "engine mutex poisoned")?;
             let timer = PerfTimer::new(false);
@@ -151,6 +149,6 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Detector>()?;
     m.add_class::<DetectResult>()?;
     m.add_class::<Detection>()?;
-    m.add("__doc__", "Bindings to the gtlv-core inference engine.")?;
+    m.add("__doc__", "gtlv-core 推理引擎的绑定。")?;
     Ok(())
 }

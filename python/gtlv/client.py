@@ -1,8 +1,4 @@
-"""Async GeeTest V3 orchestration.
-
-The Rust extension covers model inference only; assignment, ``w`` generation,
-slide solving and networking are all Python.
-"""
+"""极验 V3 的异步编排：类型探测、参数与图片获取、verify、提交时延与重试。"""
 
 from __future__ import annotations
 
@@ -33,20 +29,19 @@ BILIBILI_REGISTER_URL = (
 
 _DEFAULT_SOLVER = object()
 
-# 本地求解失败的异常。除自带求解器的 UnsolvableImageError 外，一并容纳注入的
-# 第三方求解器惯用的 RuntimeError/ValueError，使其同样触发换图重试。
+# 视为本地求解失败、触发换图重试的异常；后两者容纳注入的第三方求解器。
 _LOCAL_SOLVE_ERRORS = (UnsolvableImageError, RuntimeError, ValueError)
 
 
 @dataclass(frozen=True)
 class Challenge:
-    """A GeeTest challenge issued by a business registration endpoint."""
+    """业务登记接口下发的一组极验 challenge。"""
 
     gt: str
     challenge: str
 
     def __iter__(self) -> Iterator[str]:
-        """Allow ``gt, challenge = await client.fetch_challenge(...)``."""
+        """支持 ``gt, challenge = await client.fetch_challenge(...)`` 解包。"""
 
         yield self.gt
         yield self.challenge
@@ -54,7 +49,7 @@ class Challenge:
 
 @dataclass(frozen=True)
 class Validation:
-    """A solved challenge ready to submit to the calling business."""
+    """求解完成、可提交给业务侧的结果。"""
 
     gt: str
     challenge: str
@@ -63,12 +58,12 @@ class Validation:
 
     @property
     def seccode(self) -> str:
-        """GeeTest V3 seccode used by Bilibili-compatible login APIs."""
+        """Bilibili 形状的登录接口所需的极验 V3 seccode。"""
 
         return self.validate + "|jordan"
 
     def as_dict(self) -> Dict[str, str]:
-        """Return the common business-submission fields."""
+        """返回业务提交常用的三个字段。"""
 
         return {
             "challenge": self.challenge,
@@ -82,16 +77,14 @@ class _RetryableSolveError(Exception):
 
 
 class Client:
-    """Reusable async GeeTest client supporting click and slide challenges.
+    """可复用的异步极验客户端，支持点选与滑动。
 
-    ``http_client`` must expose an async ``get(url, params=...)`` method returning a
-    response with ``raise_for_status``/``text``/``content``/``json``. Omit it to use
-    the bundled stdlib client, which needs no HTTP dependency, or inject
-    httpx/aiohttp if you want pooling.
+    ``http_client`` 须提供异步 ``get(url, params=...)``，其响应对象提供
+    ``raise_for_status``/``text``/``content``/``json``。省略时使用内置的标准库客户端，
+    也可注入 httpx/aiohttp 以获得连接池。
 
-    Omit ``click_solver`` to lazily create and cache the bundled local solver when
-    a click challenge is first encountered. Pass ``None`` to explicitly disable
-    click solving, or inject a compatible solver for tests and custom runtimes.
+    省略 ``click_solver`` 时，首次遇到点选验证码才懒加载并缓存内置求解器；显式传入 ``None``
+    禁用点选求解；也可注入兼容的求解器，用于测试或定制运行时。
     """
 
     def __init__(
@@ -126,7 +119,7 @@ class Client:
         await self.aclose()
 
     async def aclose(self) -> None:
-        """Close the internally-created HTTP client, if any."""
+        """关闭内部创建的 HTTP 客户端；注入的客户端不受影响。"""
 
         if self._owns_http_client:
             close = getattr(self._http, "aclose", None)
@@ -137,7 +130,7 @@ class Client:
     async def fetch_challenge(
         self, url: str = BILIBILI_REGISTER_URL
     ) -> Challenge:
-        """Fetch a challenge from a Bilibili-shaped registration endpoint."""
+        """从 Bilibili 形状的登记接口取一组 challenge。"""
 
         response = await self._http.get(url)
         self._raise_for_status(response)
@@ -155,13 +148,13 @@ class Client:
     async def solve_registered(
         self, url: str = BILIBILI_REGISTER_URL
     ) -> Validation:
-        """Fetch and solve a challenge in one call."""
+        """取 challenge 并求解，一步完成。"""
 
         challenge = await self.fetch_challenge(url)
         return await self.solve(challenge.gt, challenge.challenge)
 
     async def solve(self, gt: str, challenge: str) -> Validation:
-        """Solve a V3 challenge and return business-submission fields."""
+        """求解一组 V3 challenge，返回业务提交所需字段。"""
 
         if not gt or not challenge:
             raise ValueError("gt and challenge must not be empty")
@@ -251,7 +244,7 @@ class Client:
 
     @staticmethod
     def _unwrap(exc: BaseException) -> BaseException:
-        """Surface the original solver failure instead of the internal retry marker."""
+        """上抛原始的求解失败，而非内部的重试标记异常。"""
 
         if isinstance(exc, _RetryableSolveError) and exc.__cause__ is not None:
             return exc.__cause__

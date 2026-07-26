@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [dev, main] # dev = snapshot verification; main = formal (post-merge)
+    branches: [dev, main] # dev 为快照验证，main 为合并后的正式验证
   pull_request:
-    branches: [main] # gate the dev -> main PR
+    branches: [main] # dev -> main 的 PR 门禁
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Honor rust-toolchain.toml so CI uses the same toolchain as local `make lint`.
+      # 遵循 rust-toolchain.toml，使 CI 与本地 `make lint` 用同一工具链。
       - name: Install pinned Rust toolchain
         run: rustup show
 
@@ -39,7 +39,7 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      # Building through maturin also exercises the models embedded in gtlv-core.
+      # 经 maturin 构建，同时验证 gtlv-core 内嵌的模型可用。
       - name: Install the package
         run: python -m pip install .
 

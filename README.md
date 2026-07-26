@@ -121,7 +121,22 @@ slide_payload = slide_w(
 
 ## 完整 V3 流程
 
-`gt` 和 `challenge` 通常由业务自己的登记接口签发：
+`gt`/`challenge` 可由库获取，也可由调用方提供。两者走同一条求解与重试路径，行为一致。
+
+### 由库获取（常见）
+
+业务登记接口若为 Bilibili 形状（返回 `data.geetest.gt` 与 `data.geetest.challenge`），
+可一步拿到结果：
+
+```python
+async with Client(max_attempts=3) as client:
+    result = await client.solve_registered()              # 使用内置 Bilibili 登记地址
+    result = await client.solve_registered(register_url)  # 或指定同形状的地址
+```
+
+### 由调用方提供
+
+登记接口形状不同，或 `gt`/`challenge` 已在别处取得时，直接传入：
 
 ```python
 import asyncio
@@ -157,26 +172,14 @@ asyncio.run(main())
 `result.validate` 这一对，不能继续提交传给 `solve()` 的旧 challenge。`result.as_dict()` 返回常见的
 `challenge`、`validate`、`seccode` 三字段，可避免配错。
 
-### 从登记接口开始
-
-对于返回 `data.geetest.gt` 和 `data.geetest.challenge` 的 Bilibili 形状接口，可以使用便利方法：
-
-```python
-async with Client(max_attempts=3) as client:
-    issued = await client.fetch_challenge(register_url)
-    result = await client.solve(issued.gt, issued.challenge)
-
-    # 使用内置 Bilibili 公共登记地址时，可合并为一步：
-    result = await client.solve_registered()
-```
-
-`Challenge` 也支持解包：
+若只想单独取 challenge，`fetch_challenge()` 返回可解包的 `Challenge`：
 
 ```python
 gt, challenge = await client.fetch_challenge(register_url)
 ```
 
-注意滑动流程会换用新的 challenge，所以要用 `Validation.challenge` 而不是传入的那个提交业务侧。
+无论哪种方式，滑动流程都会换用新的 challenge，因此提交业务侧时应使用 `Validation.challenge`
+而非传入的那个。
 
 ## Client 配置
 
@@ -204,6 +207,11 @@ Client(
   不会在求解完成后再固定睡满 2 秒。传入负值时按 0 处理。
 
 ## 重试与异常
+
+**默认 `max_attempts=1`，即只尝试一次，失败按类型化异常如实抛出。** 需要重试须显式调大。
+
+重试不依赖重新登记，因此 `gt`/`challenge` 由谁获取并不影响其行为：点选经 `refresh.php` 换图后
+仍用同一个 challenge，滑动则重新获取整组参数与新 challenge。服务端拒绝一次后换图重试仍可能通过。
 
 重试范围刻意保持收窄：
 

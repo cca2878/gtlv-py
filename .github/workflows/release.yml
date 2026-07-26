@@ -48,13 +48,16 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          # Pinned rather than "3.x": abi3 fixes the output ABI at py310 no matter
+          # which interpreter builds it, so a floating latest only adds the risk of
+          # outrunning what this PyO3 release knows about.
+          python-version: "3.13"
 
-      # abi3-py39 yields a single wheel per platform, so no interpreter sweep.
+      # abi3-py310 yields a single wheel per platform, so no interpreter sweep.
       - uses: PyO3/maturin-action@v1
         env:
-          # Allow building against an interpreter newer than the newest abi3
-          # version this PyO3 release knows about; the ABI is stable regardless.
+          # The manylinux containers pick their own interpreter, which may be newer
+          # than the above; the stable ABI holds either way.
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.platform.target }}

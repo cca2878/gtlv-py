@@ -9,3 +9,5 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+core
+core.[0-9]*

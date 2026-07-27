@@ -12,8 +12,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # 推理核与内嵌模型。模型随该 crate 携带，本包无需任何模型文件。
-# 固定到具体 revision：模型即其产物的一部分，升级须是显式动作。
-gtlv-core = { git = "https://github.com/cca2878/gtlv-core", rev = "30ab9063e6ef2059075011e7f4f5cf463fefb8d5" }
+# 钉到发布 tag：模型即其产物的一部分，升级须是显式动作；Cargo.lock 另记录解析出的
+# 精确 commit，故可复现性不依赖 tag 本身。
+gtlv-core = { git = "https://github.com/cca2878/gtlv-core", tag = "v0.1.0" }
 # abi3-py310：对 CPython 稳定 ABI 编译，一个 wheel 覆盖 3.10 及以后所有版本。
 # 与 requires-python = ">=3.10" 一致。
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py310"] }

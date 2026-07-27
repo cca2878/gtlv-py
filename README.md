@@ -71,7 +71,7 @@ challenge = "..."
 
 # 点选：Solver 应在进程内长期复用。
 solver = Solver()
-click = solver.solve(click_image_bytes, conf_threshold=0.5)
+click = solver.solve(click_image_bytes)
 print(click.coords)        # 按提示词从左到右排列的提交坐标
 print(click.confidences)   # 与 coords 同序
 print(click.k, click.m)    # 提示字数、检测到的答案格数
@@ -96,7 +96,7 @@ slide_payload = slide_w(
 | 接口 | 作用 |
 |---|---|
 | `Solver()` | 加载内嵌模型；应一次构造、反复使用 |
-| `Solver.solve(image, conf_threshold=0.5)` | 求解一张 PNG/JPEG 点选图，返回 `ClickResult` |
+| `Solver.solve(image, conf_threshold=0.1)` | 求解一张 PNG/JPEG 点选图，返回 `ClickResult` |
 | `solve_slide(bg, fullbg)` | 求解两张乱序滑动背景，返回 `SlideResult` |
 | `gtlv.crypto.click_w(coords, gt, challenge)` | 根据有序点击坐标生成点选 `w` |
 | `gtlv.crypto.slide_w(distance, encrypted_track, gt, challenge, c, s)` | 生成滑动 `w` |

@@ -54,7 +54,8 @@ jobs:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist
+          # --locked：Cargo.lock 需变动时构建直接失败，而非静默重新求解依赖。
+          args: --release --locked --out dist
           manylinux: auto
           sccache: "true"
 

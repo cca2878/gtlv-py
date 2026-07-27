@@ -77,7 +77,7 @@ impl Detector {
     }
 
     /// 对一张验证码图（PNG/JPEG 字节）做检测与特征提取。
-    #[pyo3(signature = (image, conf_threshold = 0.5))]
+    #[pyo3(signature = (image, conf_threshold = 0.1))]
     fn detect(
         &self,
         py: Python<'_>,

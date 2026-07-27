@@ -15,6 +15,10 @@ __all__ = ["ClickResult", "Solver"]
 MIN_PROMPT_CHARS = 2
 MAX_PROMPT_CHARS = 4
 
+# 默认检测置信度阈值。检测分数近乎二值：真答案格多在 0.8 以上，误检要到 0.005 以下才出现。
+# 取值落在这段空档里，以召回笔画稀疏或贴边被截断的格；超量由原生侧的答案格数量上限截断兜底。
+DEFAULT_CONF_THRESHOLD = 0.1
+
 
 @dataclass(frozen=True)
 class ClickResult:
@@ -37,7 +41,7 @@ class Solver:
     def __init__(self) -> None:
         self._detector = Detector()
 
-    def solve(self, image: bytes, conf_threshold: float = 0.5) -> ClickResult:
+    def solve(self, image: bytes, conf_threshold: float = DEFAULT_CONF_THRESHOLD) -> ClickResult:
         """求解一张点选验证码图（PNG/JPEG 字节）。
 
         图像无法求解时抛出 :class:`~gtlv.exceptions.UnsolvableImageError`，

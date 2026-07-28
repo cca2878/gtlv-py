@@ -1,6 +1,6 @@
 """滑动验证码求解：背景还原、缺口识别与轨迹生成。
 
-极验将滑动背景切成 52 片乱序下发。还原后逐列比较带缺口背景与完整背景，即得缺口位置。
+gt 将滑动背景切成 52 片乱序下发。还原后逐列比较带缺口背景与完整背景，即得缺口位置。
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ class SlideResult:
     distance: int
     """缺口相对滑块起点的水平位移，还原后的 260px 坐标系。"""
     encrypted_track: str
-    """极验编码后的拟人滑动轨迹。"""
+    """gt 编码后的拟人滑动轨迹。"""
 
 
 def solve(bg: bytes, fullbg: bytes) -> SlideResult:
@@ -152,7 +152,7 @@ def _encode_value(value: int) -> str:
 
 
 def _encode_track(track: Sequence[Tuple[int, int, int]]) -> str:
-    """把轨迹编码成极验的三段式字符串。"""
+    """把轨迹编码成 gt 的三段式字符串。"""
 
     if len(track) < 2:
         return ""

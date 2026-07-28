@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "gtlv"
 # Version lives in Cargo.toml; maturin propagates it here.
 dynamic = ["version"]
-description = "Local GeeTest V3 click and slide solving with an async client and embedded models"
+description = "Local gt V3 click and slide solving with an async client and embedded models"
 requires-python = ">=3.10"
 license = { text = "AGPL-3.0-only" }
 readme = "README.md"

@@ -1,4 +1,4 @@
-"""异步极验 V3 客户端抛出的类型化异常。"""
+"""异步 gt V3 客户端抛出的类型化异常。"""
 
 
 class GtlvError(Exception):
@@ -14,7 +14,7 @@ class UnsolvableImageError(GtlvError):
 
 
 class VerificationError(GtlvError):
-    """极验拒绝了提交的答案；更换图像后重试可能成功。"""
+    """gt 拒绝了提交的答案；更换图像后重试可能成功。"""
 
     def __init__(self, result: str = "", message: str = "") -> None:
         self.result = result
@@ -29,7 +29,7 @@ class VerificationError(GtlvError):
 
 
 class UnsupportedCaptchaTypeError(GtlvError):
-    """极验下发了点选与滑动之外的验证码类型。"""
+    """gt 下发了点选与滑动之外的验证码类型。"""
 
     def __init__(self, captcha_type: str) -> None:
         self.captcha_type = captcha_type

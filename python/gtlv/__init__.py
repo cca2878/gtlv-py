@@ -1,4 +1,4 @@
-"""极验 V3 的本地求解与异步编排。
+"""gt V3 的本地求解与异步编排。
 
 :class:`Client` 覆盖完整流程；:class:`Solver` 与 :func:`solve_slide` 用于求解已持有的图像。
 ``w`` 的生成位于 :mod:`gtlv.crypto`，其载荷含与提交时刻绑定的时延锚点，须在协议流程中使用。

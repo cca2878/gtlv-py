@@ -1,4 +1,4 @@
-"""极验 V3 的异步编排：类型探测、参数与图片获取、verify、提交时延与重试。"""
+"""gt V3 的异步编排：类型探测、参数与图片获取、verify、提交时延与重试。"""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ _LOCAL_SOLVE_ERRORS = (UnsolvableImageError, RuntimeError, ValueError)
 
 @dataclass(frozen=True)
 class Challenge:
-    """业务登记接口下发的一组极验 challenge。"""
+    """业务登记接口下发的一组 gt challenge。"""
 
     gt: str
     challenge: str
@@ -58,7 +58,7 @@ class Validation:
 
     @property
     def seccode(self) -> str:
-        """Bilibili 形状的登录接口所需的极验 V3 seccode。"""
+        """Bilibili 形状的登录接口所需的 gt V3 seccode。"""
 
         return self.validate + "|jordan"
 
@@ -77,7 +77,7 @@ class _RetryableSolveError(Exception):
 
 
 class Client:
-    """可复用的异步极验客户端，支持点选与滑动。
+    """可复用的异步 gt 客户端，支持点选与滑动。
 
     ``http_client`` 须提供异步 ``get(url, params=...)``，其响应对象提供
     ``raise_for_status``/``text``/``content``/``json``。省略时使用内置的标准库客户端，
@@ -136,9 +136,9 @@ class Client:
         self._raise_for_status(response)
         try:
             root = response.json()
-            geetest = root["data"]["geetest"]
-            gt = geetest["gt"]
-            challenge = geetest["challenge"]
+            node = root["data"]["geetest"]
+            gt = node["gt"]
+            challenge = node["challenge"]
         except (KeyError, TypeError, ValueError) as exc:
             raise ProtocolError("register response missing data.geetest.gt/challenge") from exc
         if not isinstance(gt, str) or not gt or not isinstance(challenge, str) or not challenge:

@@ -1,14 +1,14 @@
 # gtlv-py
 
-极验（GeeTest）V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
+gt V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO3 交由 `gtlv-core`，其余全部为 Python**：指派、`w` 参数生成、滑动求解与协议编排。求解本身不依赖网络，可用于离线图像。
 
 要求 CPython 3.10 及以上。
 
 ## 主要能力
 
 - **点选求解**：复用 `gtlv-core` 的 YOLO 检测和 Siamese 特征提取，根据提示框宽高比确定提示字数，再以矩形最优指派跳过答案区中的干扰字。
-- **滑动求解**：还原乱序背景、识别缺口、生成拟人轨迹并完成极验轨迹编码。
-- **本地加密**：生成点选和滑动 V3 `w` 参数，包括 AES-CBC、RSA 和极验自定义 Base64。
+- **滑动求解**：还原乱序背景、识别缺口、生成拟人轨迹并完成 gt 轨迹编码。
+- **本地加密**：生成点选和滑动 V3 `w` 参数，包括 AES-CBC、RSA 和 gt 自定义 Base64。
 - **异步编排**：自动判断验证码类型、并发下载滑动背景、补足验证时延、按规则换图重试，并返回类型化结果和异常。
 - **自包含分发**：生产模型由 `gtlv-core` 通过 `include_bytes!` 内嵌。wheel 不需要模型目录、临时目录、ONNX Runtime 或额外的系统推理动态库。
 - **类型支持**：包内包含 `.pyi` 和 `py.typed`，可供 mypy 等类型检查器使用。
@@ -147,13 +147,13 @@ asyncio.run(main())
 
 | 字段 | 含义 |
 |---|---|
-| `gt` | 本次使用的极验站点 ID |
+| `gt` | 本次使用的 gt 站点 ID |
 | `challenge` | 最终验证使用的 challenge |
-| `validate` | 极验验证结果 |
+| `validate` | gt 验证结果 |
 | `captcha_type` | `"click"` 或 `"slide"` |
 | `seccode` | `validate + "|jordan"` |
 
-滑动流程会从极验获取新的 challenge。业务提交必须使用 `result.challenge` 和`result.validate` 这一对，不能继续提交传给 `solve()` 的旧 challenge。`result.as_dict()` 返回常见的`challenge`、`validate`、`seccode` 三字段，可避免配错。
+滑动流程会从 gt 获取新的 challenge。业务提交必须使用 `result.challenge` 和`result.validate` 这一对，不能继续提交传给 `solve()` 的旧 challenge。`result.as_dict()` 返回常见的`challenge`、`validate`、`seccode` 三字段，可避免配错。
 
 若只想单独取 challenge，`fetch_challenge()` 返回可解包的 `Challenge`：
 
@@ -229,7 +229,7 @@ Makefile 不探测仓库外的虚拟环境，统一使用可覆盖的 `PYTHON` �
 make PYTHON=python3.12 CARGO=cargo test
 ```
 
-测试全部不访问网络。客户端测试使用注入的假 HTTP 客户端，覆盖点选/滑动分派、懒加载、换图重试、challenge 更新与协议错误；其余覆盖矩形指派、滑动背景还原与轨迹编码、极验自定义 Base64 与 `w`载荷的键序。其中滑动编码与背景还原与 Go 实现的输出逐字节比对。
+测试全部不访问网络。客户端测试使用注入的假 HTTP 客户端，覆盖点选/滑动分派、懒加载、换图重试、challenge 更新与协议错误；其余覆盖矩形指派、滑动背景还原与轨迹编码、gt 自定义 Base64 与 `w`载荷的键序。其中滑动编码与背景还原与 Go 实现的输出逐字节比对。
 
 ## 许可
 

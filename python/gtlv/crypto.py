@@ -1,7 +1,7 @@
-"""极验 V3 ``w`` 参数的生成。
+"""gt V3 ``w`` 参数的生成。
 
 ``w`` 由两段拼成：AES-CBC 加密的 JSON 载荷，以及 RSA 加密的 AES 密钥；
-密文以极验自定义的 Base64 变体承载。
+密文以 gt 自定义的 Base64 变体承载。
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ _RSA_MODULUS = int(
 )
 _RSA_EXPONENT = 0x10001
 
-# 极验的 Base64 字母表，以 '.' 作填充。
+# gt 的 Base64 字母表，以 '.' 作填充。
 _BASE64_ALPHABET = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()"
 # 每个掩码恰有 6 个置位，从 24 位输入中挑出一个输出字符的位。
 _MASKS = (7274496, 9483264, 19220, 235)
@@ -136,10 +136,10 @@ def _encrypt_payload(payload: Dict[str, object]) -> str:
     public_key = rsa.RSAPublicNumbers(_RSA_EXPONENT, _RSA_MODULUS).public_key()
     encrypted_key = public_key.encrypt(_AES_KEY, padding.PKCS1v15())
 
-    return _geetest_base64(ciphertext) + encrypted_key.hex()
+    return _gt_base64(ciphertext) + encrypted_key.hex()
 
 
-def _geetest_base64(data: bytes) -> str:
+def _gt_base64(data: bytes) -> str:
     def pick(base: int, mask: int) -> int:
         result = 0
         for bit in range(23, -1, -1):

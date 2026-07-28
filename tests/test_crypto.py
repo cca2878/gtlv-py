@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from gtlv.crypto import (
     _click_key,
-    _geetest_base64,
+    _gt_base64,
     _obfuscate_track,
     _user_response,
     click_w,
@@ -47,10 +47,10 @@ class CryptoTests(unittest.TestCase):
     def test_click_key_scales_coordinates(self):
         self.assertEqual(_click_key([(333.375, 0.0), (166.6875, 333.375)]), "10000_0,5000_10000")
 
-    def test_geetest_base64_padding(self):
-        self.assertEqual(_geetest_base64(b"\0\0\0"), "AAAA")
-        self.assertEqual(_geetest_base64(b"\0"), "AA..")
-        self.assertEqual(_geetest_base64(b"\0\0"), "AAA.")
+    def test_gt_base64_padding(self):
+        self.assertEqual(_gt_base64(b"\0\0\0"), "AAAA")
+        self.assertEqual(_gt_base64(b"\0"), "AA..")
+        self.assertEqual(_gt_base64(b"\0\0"), "AAA.")
 
     def test_click_payload_key_order_matches_the_browser(self):
         # 键序参与指纹，必须保持这个顺序而非字母序。

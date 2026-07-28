@@ -2,7 +2,7 @@
 name = "gtlv-py"
 version = "0.1.2"
 edition = "2021"
-description = "极验 V3 点选/滑动求解的 Python 绑定：Rust 本地原语 + Python async 编排"
+description = "gt V3 点选/滑动求解的 Python 绑定：Rust 本地原语 + Python async 编排"
 license = "AGPL-3.0-only"
 repository = "https://github.com/cca2878/gtlv-py"
 

@@ -15,8 +15,12 @@ concurrency:
 
 jobs:
   ci:
-    name: Rust + Python (lint · test)
+    name: Rust + Python ${{ matrix.python }} (lint · test)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11"]
     steps:
       - uses: actions/checkout@v7
 
@@ -28,16 +32,19 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python }}
 
       - name: Install dev dependencies
+        run: python -m pip install --upgrade "pip>=26.2.2"
+
+      - name: Install lint dependencies
         run: python -m pip install --upgrade "maturin>=1.0,<2.0" "mypy>=1.19"
 
       - name: cargo fmt
         run: cargo fmt --all -- --check
 
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
 
       # 经 maturin 构建，同时验证 gtlv-core 内嵌的模型可用。
       - name: Install the package
@@ -50,3 +57,15 @@ jobs:
 
       - name: Python tests
         run: python -m unittest discover -s tests
+
+  required:
+    # Keep the existing branch-protection check, requiring both interpreters.
+    name: Rust + Python (lint · test)
+    needs: ci
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every matrix job
+        env:
+          RESULT: ${{ needs.ci.result }}
+        run: test "$RESULT" = success

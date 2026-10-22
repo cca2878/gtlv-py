@@ -13,9 +13,13 @@ gt V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO
 - **自包含分发**：生产模型由 `gtlv-core` 通过 `include_bytes!` 内嵌。wheel 不需要模型目录、临时目录、ONNX Runtime 或额外的系统推理动态库。
 - **类型支持**：包内包含 `.pyi` 和 `py.typed`，可供 mypy 等类型检查器使用。
 
-`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`），无需 HTTP 依赖；也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或进行离线协议测试。
+`Client` 默认使用标准库（`urllib`，见 `gtlv/_http.py`）与更新的 certifi CA 库；也支持注入兼容的异步 HTTP 客户端（httpx/aiohttp），方便配置代理、接入现有会话或进行离线协议测试。
 
-运行期依赖只有两项：`cryptography` 用于 `w` 所需的 AES-CBC 与 RSA，`pillow` 用于滑动背景的解码、重排与差分。
+运行期依赖为 `cryptography>=50.0.2`（AES-CBC 与 RSA）、`certifi>=2026.10.19`（默认 HTTPS 信任库）和 Pillow（滑动图像处理）。
+
+0.1.4 更新 PyO3 至 0.29 系列，修复旧绑定中的内存安全问题，保留 CPython 3.10 的 `abi3`。Python 3.10 使用 Pillow 12.3；Python 3.11+ 使用 Pillow 13。Pillow 13 的十月安全修复没有可用于 Python 3.10 的上游回补，因此 3.10 环境仍有已知图像处理风险；处理不可信图像时应隔离进程或升级到 Python 3.11+。默认 HTTP 客户端使用 certifi，注入的 httpx/aiohttp 客户端应自行更新 CA 库；宿主机的系统 CA、pip、uv 也需单独更新。
+
+私有 CA 可通过 `HttpClient(ssl_context=ssl.create_default_context(cafile=...))` 配置后传入 `Client(http_client=...)`；请保留证书和主机名校验。HTTP 辅助类位于 `gtlv._http`。
 
 ## 架构
 

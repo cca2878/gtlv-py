@@ -69,7 +69,7 @@ impl Detector {
     fn new(py: Python<'_>) -> PyResult<Self> {
         // 加载不触及 Python 对象；释放 GIL 使调用方的事件循环不被阻塞。
         let engine = py
-            .allow_threads(Engine::new)
+            .detach(Engine::new)
             .map_err(|e| PyRuntimeError::new_err(format!("load models: {e}")))?;
         Ok(Self {
             engine: Mutex::new(engine),
@@ -88,7 +88,7 @@ impl Detector {
             return Err(PyValueError::new_err("empty image"));
         }
         // 推理不触及 Python 对象；释放 GIL 使调用方的协程或线程不被阻塞。
-        let result = py.allow_threads(|| {
+        let result = py.detach(|| {
             let engine = self.engine.lock().map_err(|_| "engine mutex poisoned")?;
             let timer = PerfTimer::new(false);
             engine

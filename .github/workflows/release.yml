@@ -47,6 +47,9 @@ jobs:
           # 超出当前 PyO3 支持的范围。
           python-version: "3.13"
 
+      - name: Update installer CA bundle
+        run: python -m pip install --upgrade "pip>=26.2.2"
+
       # abi3-py310 每个平台只产出一个 wheel，无需遍历解释器版本。
       - uses: PyO3/maturin-action@v1
         env:

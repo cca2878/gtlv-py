@@ -17,6 +17,8 @@ gt V3 点选与滑动验证码的 Python 本地求解库。**模型推理经 PyO
 
 运行期依赖为 `cryptography>=50.0.2`（AES-CBC 与 RSA）、`certifi>=2026.10.19`（默认 HTTPS 信任库）和 Pillow（滑动图像处理）。
 
+0.1.5 升级推理后端至 tract 0.23.9，并通过 gtlv-core 0.1.3 减少图像预处理中的复制和遍历开销；内置模型与公开 API 保持兼容。
+
 0.1.4 更新 PyO3 至 0.29 系列，修复旧绑定中的内存安全问题，保留 CPython 3.10 的 `abi3`。Python 3.10 使用 Pillow 12.3；Python 3.11+ 使用 Pillow 13。Pillow 13 的十月安全修复没有可用于 Python 3.10 的上游回补，因此 3.10 环境仍有已知图像处理风险；处理不可信图像时应隔离进程或升级到 Python 3.11+。默认 HTTP 客户端使用 certifi，注入的 httpx/aiohttp 客户端应自行更新 CA 库；宿主机的系统 CA、pip、uv 也需单独更新。
 
 私有 CA 可通过 `HttpClient(ssl_context=ssl.create_default_context(cafile=...))` 配置后传入 `Client(http_client=...)`；请保留证书和主机名校验。HTTP 辅助类位于 `gtlv._http`。
